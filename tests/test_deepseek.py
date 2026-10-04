@@ -3,12 +3,16 @@ from __future__ import annotations
 import importlib.util
 import copy
 import hashlib
+import io
+import os
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from unittest.mock import patch
 
-from blackbox_lens import OpenAICompatible, SuiteError, analyze_run, create_plan, run_suite
+from blackbox_lens import OpenAICompatible, Suite, SuiteError, analyze_run, create_plan, run_suite
 from blackbox_lens.suite import canonical_bytes
 from test_core import small_suite
 from test_http import KEY, server
@@ -182,6 +186,70 @@ class DeepSeekTests(unittest.TestCase):
                 self.assertEqual(len(requests), 1)
                 self.assertEqual(summary["stop_reason"], reason)
                 self.assertEqual(sum(x["counts"]["missing"] for x in summary["modes"].values()), 11)
+
+    def test_plan_only_cli_and_matching_plan_bind_actual_schedule_without_http_planning(self):
+        with tempfile.TemporaryDirectory() as tmp, server(provider_body()) as (url, requests):
+            root = Path(tmp)
+            suite = small_suite()
+            suite_path = root / "suite.json"
+            suite_path.write_bytes(canonical_bytes(suite.to_dict()))
+            source = {"head": "test-clean-commit", "dirty": False,
+                      "runner_sha256": "a" * 64, "package_sha256": "b" * 64}
+            options = {"repeats": 1, "seed": 20261005, "workers": 1, "max_requests": 4}
+            with patch.object(batch, "_source_provenance", return_value=source), patch.dict(os.environ, {"MOCK_KEY": KEY}):
+                with redirect_stdout(io.StringIO()):
+                    code = batch.main([str(suite_path), "--out", str(root / "plan"), "--base-url", url,
+                        "--model", "m", "--key-env", "MOCK_KEY", "--timeout", "1", "--max-tokens", "4096",
+                        "--repeats", "1", "--seed", "20261005", "--workers", "1", "--max-requests", "4", "--plan-only"])
+                self.assertEqual(code, 0)
+                self.assertEqual(requests, [])
+                plan_path = root / "plan" / "batch-plan.json"
+                frozen = json.loads(plan_path.read_text())
+                self.assertNotIn(KEY, plan_path.read_text())
+                adapters = {mode: OpenAICompatible(url, "m", api_key=KEY, thinking=mode, timeout=1,
+                    max_tokens=4096, reasoning_effort="high" if mode == "enabled" else None)
+                    for mode in ("disabled", "enabled")}
+                summary = batch.run_batch(suite, adapters, root / "actual", expected_plan=plan_path, **options)
+                self.assertIsNone(summary["stop_reason"])
+                self.assertEqual(len(requests), 4)
+                manifest = json.loads((root / "actual" / "batch-manifest.json").read_text())
+                self.assertEqual(manifest["plan_sha256"], frozen["plan_sha256"])
+                self.assertEqual(manifest["expected_plan_sha256"], frozen["plan_sha256"])
+                events = [json.loads(line) for line in (root / "actual" / "events.jsonl").read_text().splitlines()]
+                admissions = [{k: event[k] for k in ("sequence", "mode", "trial_id")}
+                              for event in events if event["kind"] == "submitted"]
+                self.assertEqual(admissions, frozen["plan"]["schedule"])
+
+    def test_expected_plan_mismatches_are_refused_before_network_and_output_creation(self):
+        with tempfile.TemporaryDirectory() as tmp, server(provider_body()) as (url, requests):
+            root, suite = Path(tmp), small_suite()
+            source = {"head": "clean-commit", "dirty": False, "runner_sha256": "a" * 64, "package_sha256": "b" * 64}
+            adapters = {mode: OpenAICompatible(url, "m", api_key=KEY, thinking=mode)
+                        for mode in ("disabled", "enabled")}
+            options = {"repeats": 1, "seed": 42, "workers": 1, "max_requests": 4}
+            with patch.object(batch, "_source_provenance", return_value=source):
+                batch.plan_batch(suite, adapters, root / "plan", **options)
+                plan_path = root / "plan" / "batch-plan.json"
+                with self.assertRaises(SuiteError):
+                    batch.plan_batch(suite, adapters, root / "plan", **options)
+                changed = suite.to_dict()
+                changed["cases"][0]["variants"][0]["prompt"] += " Changed text."
+                for index, (candidate, changes) in enumerate(((suite, {"workers": 2}),
+                        (suite, {"seed": 43}), (suite, {"max_requests": 5}), (Suite.from_dict(changed), {}))):
+                    out = root / f"mismatch-{index}"
+                    with self.assertRaises(SuiteError):
+                        batch.run_batch(candidate, adapters, out, expected_plan=plan_path, **{**options, **changes})
+                    self.assertFalse(out.exists())
+                for index, field in enumerate(("head", "runner_sha256", "package_sha256", "dirty")):
+                    changed_source = {**source, field: True if field == "dirty" else "changed"}
+                    with patch.object(batch, "_source_provenance", return_value=changed_source), self.assertRaises(SuiteError):
+                        batch.run_batch(suite, adapters, root / f"source-{index}", expected_plan=plan_path, **options)
+                frozen = json.loads(plan_path.read_text())
+                frozen["plan"]["schedule"][0]["trial_id"] = "unplanned"
+                plan_path.write_bytes(canonical_bytes(frozen))
+                with self.assertRaises(SuiteError):
+                    batch.run_batch(suite, adapters, root / "tampered", expected_plan=plan_path, **options)
+                self.assertEqual(requests, [])
 
     def test_mode_validation(self):
         for config in ({"thinking": "yes"}, {"thinking": "disabled", "reasoning_effort": "high"},

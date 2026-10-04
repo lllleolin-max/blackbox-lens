@@ -183,15 +183,30 @@ report = analyze_run("sdk-run", out="sdk-analysis")
 
 The reviewed suite and preregistered protocol are under [experiments/deepseek-2026-10-05](experiments/deepseek-2026-10-05/PROTOCOL.md). The source distribution includes that suite, answer key and the standard-library runner. Install this candidate first, then provide the credential through `DEEPSEEK_API_KEY` in the process environment:
 
+First create an immutable plan in a new directory. `--plan-only` reads and validates the key environment variable for accurate authentication metadata and secret checks, but invokes no model requests. It saves sanitized configuration, source fingerprints and the complete admission schedule in `batch-plan.json`, with a SHA-256 over canonical plan JSON:
+
+```powershell
+python tools/deepseek_batch.py experiments/deepseek-2026-10-05/suite.json `
+  --out run-deepseek-plan-20261005 --base-url https://api.deepseek.com `
+  --model deepseek-flash --key-env DEEPSEEK_API_KEY --repeats 3 `
+  --seed 20261005 --workers 4 --timeout 120 --max-tokens 4096 `
+  --reasoning-effort high --max-requests 432 --plan-only
+```
+
+Inspect and freeze that file, then require the same plan for execution:
+
 ```powershell
 python tools/deepseek_batch.py experiments/deepseek-2026-10-05/suite.json `
   --out run-deepseek-20261005 --base-url https://api.deepseek.com `
   --model deepseek-flash --key-env DEEPSEEK_API_KEY --repeats 3 `
   --seed 20261005 --workers 4 --timeout 120 --max-tokens 4096 `
-  --reasoning-effort high --max-requests 432
+  --reasoning-effort high --max-requests 432 `
+  --expected-plan run-deepseek-plan-20261005/batch-plan.json
 ```
 
 The batch manifest records all planned admissions before execution. Both modes use the same seeded trial plan; same-trial pairs alternate which mode is admitted first. Concurrency is limited to 1–4 workers; actual starts/completions may differ from admission order. `events.jsonl` records submissions, completions and stopping decisions. Raw records and observations are created or appended once; failed slots are never automatically retried. HTTP 401/402/403, a `length` finish, a response-size failure, three consecutive errors or ten cumulative errors stop further admissions. Already submitted calls finish and are retained. Error order is the completion-event order, and invalid labels reset consecutive error counts. Ctrl+C stops admission and waits for bounded in-flight requests; remaining planned slots stay missing. There is no resume support; analyze a partial run offline and use a separately preregistered new directory if a new attempt is warranted. Each mode has its own run artifacts and `analysis-{mode}` report directory; `batch-summary.json` records the stop reason and coverage.
+
+Planning and execution share one builder. `--expected-plan` rejects changed configuration, suite, schedule, Git SHA, runner bytes or installed package bytes before creating the run directory or sending a request. Binding requires a clean Git checkout and the same Python version; source archives without Git can still run without this option, with unavailable Git fields recorded as `null`. The actual batch manifest stores `plan_sha256` and the bound `expected_plan_sha256`. Hashes establish internal agreement, not authenticity, and cannot guarantee a provider keeps a model alias unchanged after planning.
 
 `OpenAICompatible(...)` 提供在线适配器；Python 接口遵循相同的测试集校验和新输出目录规则。
 
@@ -215,6 +230,8 @@ The [fixed rubric](docs/reviews/RUBRIC.md), [Round 1 review](docs/reviews/ROUND1
 The published v0.1.0 [Round 3 release audit report](https://github.com/lllleolin-max/blackbox-lens/releases/download/v0.1.0/ROUND3.md) records that release's reviewed source SHA, decision and limitations. Read that report for the result applicable to v0.1.0; earlier reviews describe their own cited versions.
 
 已发布的 v0.1.0 [第 3 轮发布审计报告](https://github.com/lllleolin-max/blackbox-lens/releases/download/v0.1.0/ROUND3.md)记录该版本的源码 SHA、结论和限制。请以该报告判断 v0.1.0 的结果；前两轮报告仅描述各自注明的历史版本，不代表 v0.2.0 扩展的审查结果。
+
+Live study results and independent evidence, when published, will be available with the [v0.2.0 release](https://github.com/lllleolin-max/blackbox-lens/releases/tag/v0.2.0).
 
 See [method definitions and primary references](docs/METHODOLOGY.md). Related projects such as [CheckList](https://aclanthology.org/2020.acl-main.442/), [FormatSpread](https://arxiv.org/abs/2310.11324), and [Inspect](https://inspect.aisi.org.uk/) cover established behavioral testing, format sensitivity, and broader evaluation infrastructure. This project offers a small, focused workflow; it does not claim a new interpretability technique.
 
