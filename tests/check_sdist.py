@@ -10,7 +10,9 @@ def check_sdist(directory: Path = Path("dist")) -> None:
         raise AssertionError("expected exactly one built source archive")
     required = {"README.md", "LICENSE", "docs/METHODOLOGY.md", "docs/SELF_REVIEW.md",
                 "docs/reviews/RUBRIC.md", "examples/minimal.json", "examples/demo.json",
-                "src/blackbox_lens/data/demo.json", "tests/check_sdist.py"}
+                "src/blackbox_lens/data/demo.json", "tests/check_sdist.py", "tools/deepseek_batch.py",
+                "experiments/deepseek-2026-10-05/suite.json", "experiments/deepseek-2026-10-05/PROTOCOL.md",
+                "experiments/deepseek-2026-10-05/ANSWER_KEY.md"}
     with tarfile.open(archives[0], "r:gz") as archive:
         files = {member.name.split("/", 1)[1]: member for member in archive.getmembers()
                  if member.isfile() and "/" in member.name}

@@ -126,7 +126,9 @@ class HTTPTests(unittest.TestCase):
             directory = Path(tmp) / "run"
             report = run_suite(small_suite(), OpenAICompatible(url, "m", api_key=KEY), directory, repeats=1)
             self.assertEqual(report["counts"]["errors"], 2)
-            for path in directory.iterdir():
+            for path in directory.rglob("*"):
+                if not path.is_file():
+                    continue
                 text = path.read_text(encoding="utf-8")
                 self.assertNotIn(KEY, text)
                 self.assertNotIn(json.dumps(KEY)[1:-1], text)
@@ -146,7 +148,7 @@ class HTTPTests(unittest.TestCase):
                     "http://127.0.0.1/\r\nX: evil"):
             with self.subTest(url=url), self.assertRaises(SuiteError):
                 OpenAICompatible(url, "model", api_key=KEY)
-        for timeout in (0, -1, float("nan"), float("inf"), True, 121):
+        for timeout in (0, -1, float("nan"), float("inf"), True, 601):
             with self.subTest(timeout=timeout), self.assertRaises(SuiteError):
                 OpenAICompatible("http://localhost/v1", "m", api_key=None, timeout=timeout)
         with self.assertRaises(SuiteError):

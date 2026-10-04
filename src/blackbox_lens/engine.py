@@ -12,9 +12,12 @@ from datetime import datetime, timezone
 from itertools import combinations
 from pathlib import Path
 
+from . import __version__
 from .adapters import Adapter, ERRORS, Reply
 from .suite import (Case, MAX_RAW_CHARS, MAX_REQUESTS, Suite, SuiteError, Variant,
                     canonical_bytes, decode_json, integer, keys, read_json)
+
+MAX_CALL_RECORD_BYTES = 4_194_304
 
 
 @dataclass(frozen=True)
@@ -54,8 +57,8 @@ def _new_directory(out: str | Path) -> Path:
     return path
 
 
-def run_suite(suite: Suite, adapter: Adapter, out: str | Path, *, repeats: int = 3,
-              seed: int = 42, max_requests: int = 100) -> dict:
+def _make_manifest(suite: Suite, adapter: Adapter, *, repeats: int, seed: int,
+                   max_requests: int) -> tuple[dict, list[Trial]]:
     plan = create_plan(suite, repeats=repeats, seed=seed)
     suite = Suite.from_dict(suite.to_dict())
     integer(max_requests, 1, MAX_REQUESTS, "max_requests")
@@ -69,37 +72,69 @@ def run_suite(suite: Suite, adapter: Adapter, out: str | Path, *, repeats: int =
         metadata = decode_json(canonical_bytes(metadata))
     except (ValueError, TypeError, RecursionError):
         raise SuiteError("adapter metadata must be a bounded JSON object") from None
-    manifest = {"schema_version": 1, "package_version": "0.1.0", "python_version": platform.python_version(),
+    manifest = {"schema_version": 2, "package_version": __version__, "python_version": platform.python_version(),
                 "created_at": datetime.now(timezone.utc).isoformat(), "suite": suite.to_dict(),
                 "suite_sha256": suite.sha256, "repeats": repeats, "seed": seed,
                 "order": [t.id for t in plan], "adapter": metadata}
     if hasattr(adapter, "contains_secret") and adapter.contains_secret(canonical_bytes(manifest)):
         raise SuiteError("configured credential occurs in suite or metadata; run refused")
+    return manifest, plan
+
+
+def _record_trial(trial: Trial, adapter: Adapter, directory: Path, suite_sha256: str) -> dict:
+    """Single attempt, with an exclusively created, digest-linked sanitized evidence record."""
+    started_at = datetime.now(timezone.utc).isoformat()
+    started = time.perf_counter()
+    try:
+        reply = adapter.respond(trial)
+        if not isinstance(reply, Reply):
+            reply = Reply(error="adapter_error")
+        elif reply.error is not None:
+            reply = Reply(error=reply.error if reply.error in ERRORS else "adapter_error", evidence=reply.evidence)
+        elif not isinstance(reply.raw, str):
+            reply = Reply(error="malformed_response", evidence=reply.evidence)
+        elif len(reply.raw) > MAX_RAW_CHARS:
+            reply = Reply(error="response_too_large", evidence=reply.evidence)
+        else:
+            reply.raw.encode("utf-8")
+    except Exception:
+        reply = Reply(error="adapter_error")
+    observation = {"trial_id": trial.id, "raw": reply.raw, "error": reply.error,
+                   "duration_ms": round((time.perf_counter() - started) * 1000, 3)}
+    record = {"schema_version": 1, "trial_id": trial.id, "suite_sha256": suite_sha256,
+              "started_at": started_at, "completed_at": datetime.now(timezone.utc).isoformat(),
+              "observation": dict(observation), "provider": reply.evidence}
+    try:
+        encoded = canonical_bytes(record)
+        if len(encoded) > MAX_CALL_RECORD_BYTES:
+            raise SuiteError("call evidence exceeds size limit")
+    except SuiteError:
+        observation.update(raw=None, error="adapter_error")
+        record.update(observation=dict(observation), provider={"evidence_rejected": True})
+        encoded = canonical_bytes(record)
+    if hasattr(adapter, "contains_secret") and adapter.contains_secret(encoded):
+        observation.update(raw=None, error="secret_redacted")
+        record.update(observation=dict(observation), provider={"redacted": True})
+        encoded = canonical_bytes(record)
+    name = hashlib.sha256(trial.id.encode("utf-8")).hexdigest() + ".json"
+    with (directory / "calls" / name).open("xb") as stream:
+        stream.write(encoded)
+        stream.flush()
+    observation["call_record"] = {"path": "calls/" + name, "sha256": hashlib.sha256(encoded).hexdigest()}
+    return observation
+
+
+def run_suite(suite: Suite, adapter: Adapter, out: str | Path, *, repeats: int = 3,
+              seed: int = 42, max_requests: int = 100) -> dict:
+    manifest, plan = _make_manifest(suite, adapter, repeats=repeats, seed=seed, max_requests=max_requests)
     directory = _new_directory(out)
     _write_json(directory / "manifest.json", manifest)
+    (directory / "calls").mkdir()
     interrupted = False
     with (directory / "observations.jsonl").open("x", encoding="utf-8", newline="\n") as stream:
         try:
             for trial in plan:
-                started = time.perf_counter()
-                try:
-                    reply = adapter.respond(trial)
-                    if not isinstance(reply, Reply):
-                        reply = Reply(error="adapter_error")
-                    elif reply.error is not None:
-                        reply = Reply(error=reply.error if reply.error in ERRORS else "adapter_error")
-                    elif not isinstance(reply.raw, str):
-                        reply = Reply(error="malformed_response")
-                    elif len(reply.raw) > MAX_RAW_CHARS:
-                        reply = Reply(error="response_too_large")
-                    else:
-                        reply.raw.encode("utf-8")
-                except Exception:
-                    reply = Reply(error="adapter_error")
-                observation = {"trial_id": trial.id, "raw": reply.raw, "error": reply.error,
-                               "duration_ms": round((time.perf_counter() - started) * 1000, 3)}
-                if hasattr(adapter, "contains_secret") and adapter.contains_secret(canonical_bytes(observation)):
-                    observation["raw"], observation["error"] = None, "secret_redacted"
+                observation = _record_trial(trial, adapter, directory, suite.sha256)
                 stream.write(canonical_bytes(observation).decode("utf-8") + "\n")
                 stream.flush()  # A killed run remains reanalyzable with explicit missing slots.
         except KeyboardInterrupt:
@@ -115,7 +150,7 @@ def _load_manifest(directory: Path) -> tuple[dict, Suite, list[Trial]]:
     manifest = read_json(directory / "manifest.json", 4_194_304)
     keys(manifest, {"schema_version", "package_version", "python_version", "created_at", "suite",
                     "suite_sha256", "repeats", "seed", "order", "adapter"}, "manifest")
-    integer(manifest["schema_version"], 1, 1, "artifact schema_version")
+    integer(manifest["schema_version"], 1, 2, "artifact schema_version")
     for field in ("package_version", "python_version", "created_at"):
         if not isinstance(manifest[field], str) or not 1 <= len(manifest[field]) <= 100:
             raise SuiteError("invalid manifest metadata")
@@ -130,7 +165,8 @@ def _load_manifest(directory: Path) -> tuple[dict, Suite, list[Trial]]:
     return manifest, suite, plan
 
 
-def _load_observations(directory: Path, planned: set[str]) -> dict[str, dict]:
+def _load_observations(directory: Path, planned: set[str], *, schema_version: int = 1,
+                       suite_sha256: str | None = None) -> dict[str, dict]:
     observations = {}
     total = 0
     try:
@@ -143,7 +179,8 @@ def _load_observations(directory: Path, planned: set[str]) -> dict[str, dict]:
                 if len(line) > 32768 or total > 33_554_432:
                     raise SuiteError("observations exceed size limit")
                 value = decode_json(line)
-                keys(value, {"trial_id", "raw", "error", "duration_ms"}, "observation")
+                fields = {"trial_id", "raw", "error", "duration_ms"}
+                keys(value, fields | ({"call_record"} if schema_version == 2 else set()), "observation")
                 tid = value["trial_id"]
                 if not isinstance(tid, str) or tid not in planned or tid in observations:
                     raise SuiteError("duplicate or unplanned observation trial id")
@@ -160,6 +197,30 @@ def _load_observations(directory: Path, planned: set[str]) -> dict[str, dict]:
                         raise SuiteError("invalid raw response Unicode") from None
                 if type(duration) not in {int, float} or not math.isfinite(duration) or duration < 0:
                     raise SuiteError("invalid observation duration")
+                if schema_version == 2:
+                    reference = value["call_record"]
+                    keys(reference, {"path", "sha256"}, "call record reference")
+                    expected_path = "calls/" + hashlib.sha256(tid.encode()).hexdigest() + ".json"
+                    if reference["path"] != expected_path:
+                        raise SuiteError("invalid call record path")
+                    record = read_json(directory / expected_path, MAX_CALL_RECORD_BYTES)
+                    if hashlib.sha256(canonical_bytes(record)).hexdigest() != reference["sha256"]:
+                        raise SuiteError("call record digest mismatch")
+                    keys(record, {"schema_version", "trial_id", "suite_sha256", "started_at", "completed_at",
+                                  "observation", "provider"}, "call record")
+                    if (record["schema_version"] != 1 or record["trial_id"] != tid
+                            or record["suite_sha256"] != suite_sha256
+                            or record["observation"] != {k: value[k] for k in fields}):
+                        raise SuiteError("call record does not match observation")
+                    for field in ("started_at", "completed_at"):
+                        try:
+                            stamp = datetime.fromisoformat(record[field])
+                            if stamp.utcoffset() != timezone.utc.utcoffset(stamp):
+                                raise ValueError
+                        except (TypeError, ValueError):
+                            raise SuiteError("invalid call record UTC timestamp") from None
+                    if record["provider"] is not None and not isinstance(record["provider"], dict):
+                        raise SuiteError("invalid provider evidence")
                 observations[tid] = value
     except OSError:
         raise SuiteError("cannot read observations") from None
@@ -198,7 +259,8 @@ def analyze_run(run_dir: str | Path, out: str | Path | None = None) -> dict:
     """Recompute from raw observations; cached reports are ignored. Missing slots remain missing."""
     directory = Path(run_dir)
     manifest, suite, plan = _load_manifest(directory)
-    observations = _load_observations(directory, {t.id for t in plan})
+    observations = _load_observations(directory, {t.id for t in plan}, schema_version=manifest["schema_version"],
+                                      suite_sha256=suite.sha256)
     rows = []
     lookup = {}
     for order, trial in enumerate(plan, start=1):
@@ -213,6 +275,8 @@ def analyze_run(run_dir: str | Path, out: str | Path | None = None) -> dict:
                "duration_ms": observation["duration_ms"] if observation else None,
                "semantic_answer": semantic, "expected": trial.case.expected,
                "correct": semantic == trial.case.expected if status == "valid" else False}
+        if manifest["schema_version"] == 2:
+            row["call_record"] = observation["call_record"] if observation else None
         rows.append(row)
         lookup[(trial.case.id, trial.variant.id, trial.repeat)] = row
     counts = _counts(rows)

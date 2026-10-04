@@ -121,6 +121,8 @@ blackbox-lens run suite.json --out live-run `
 
 Use `--token-parameter max_completion_tokens` if your endpoint requires it. `--no-auth` is available only for a loopback endpoint such as `http://127.0.0.1:8000/v1`. Remote endpoints require HTTPS and an API key. The adapter sets `temperature=0`; that does not guarantee deterministic provider responses. It sends fresh conversations and performs no retries or redirects. Plans exceeding the request budget are rejected before execution; the default budget is 100 requests.
 
+For DeepSeek, pass `--thinking enabled --reasoning-effort high` or `--thinking disabled` explicitly. Enabled thinking omits `temperature`, which the provider documents as ineffective in that mode; disabled thinking sends zero. The default token budget is 4096 with explicitly enabled thinking and 32 otherwise. Use the same explicit budget when comparing modes. These are optional provider extensions; model identifiers are supplied by the caller, with no alias or price assumptions. See the [official thinking-mode documentation](https://api-docs.deepseek.com/guides/thinking_mode/) (checked 2026-10-05).
+
 如果服务要求另一参数，可使用 `--token-parameter max_completion_tokens`。`--no-auth` 仅允许本机回环端点；远程端点要求 HTTPS 和密钥。`temperature=0` 不保证模型输出确定性。每次调用使用新会话，不自动重试或跟随重定向；超过请求预算的计划在执行前被拒绝，默认预算为 100 次。
 
 Prompts are sent to the configured endpoint. Artifacts retain the suite, configuration and bounded raw responses; there is no automatic deletion. The configured API key is excluded from metadata and checked for literal appearances in inputs/outputs, but this is not a general secret detector. Keep unrelated credentials and sensitive data out of suites, inspect artifacts before sharing, and avoid placing real keys in shell history.
@@ -133,6 +135,7 @@ Prompts are sent to the configured endpoint. Artifacts retain the suite, configu
 | --- | --- |
 | `manifest.json` | Suite, adapter metadata and planned execution / 测试集、适配器元数据和运行计划 |
 | `observations.jsonl` | Recorded response slots / 已记录的响应槽位 |
+| `calls/*.json` | Digest-linked sanitized per-call evidence, including failed provider responses / 含失败响应的逐次调用记录 |
 | `report.json` | Counts, denominators and computed metrics / 计数、分母和计算指标 |
 | `report.html` | Standalone report for inspection / 可独立打开的检查报告 |
 
@@ -149,6 +152,8 @@ blackbox-lens analyze demo-run --out demo-analysis
 ```
 
 Reanalysis recomputes the report from saved artifacts and writes JSON/HTML reports to a new directory, preserving the source run. It does not copy the raw run into that directory. Invalid manifests or observation records are rejected. Missing planned results remain visible rather than disappearing from the denominator.
+
+Version 0.2 writes artifact schema 2 and continues to analyze schema-1 runs. Each observation links an exclusively created call record by SHA-256. Records include UTC start/end, client duration, the exact request JSON without authorization, HTTP status, returned ID/model/finish reason, final content, `reasoning_content`, and the full sanitized provider JSON (including all usage/cache/reasoning token fields when returned). Missing provider fields remain `null`, not invented zeros. `reasoning_content` is provider-returned text and is **not guaranteed privileged internal reasoning**. Error and truncated responses are retained with explicit status. The HTTP body limit is 1 MiB; an oversized body retains a flagged prefix and is an error. Final answers exceeding 4096 characters are also errors, with the received response preserved within the body limit. Call records have a 4 MiB serialization limit; rejected evidence is explicitly marked. Only successful, bounded final content enters exact-label scoring.
 
 重新分析从已保存的产物重算 JSON/HTML 报告，写入新目录并保留源运行；原始运行不会复制到分析目录。不合法的记录会被拒绝。未记录的计划响应仍以缺失项显示，不会从分母中静默消失。
 
@@ -172,15 +177,29 @@ run_suite(
 report = analyze_run("sdk-run", out="sdk-analysis")
 ```
 
-`OpenAICompatible(base_url, model, api_key=..., timeout=30, max_tokens=32, token_parameter="max_tokens")` provides the live adapter. The same suite validation and output-directory rules apply to the API.
+`OpenAICompatible(base_url, model, api_key=..., timeout=30, max_tokens=None, token_parameter="max_tokens", thinking=None, reasoning_effort=None)` provides the live adapter. Unspecified thinking preserves the original request shape and 32-token default. An explicit `thinking="enabled"` changes the default budget to 4096; `reasoning_effort` requires enabled thinking. The same suite validation and output-directory rules apply to the API.
+
+## Paired DeepSeek study / 双模式实验
+
+The reviewed suite and preregistered protocol are under [experiments/deepseek-2026-10-05](experiments/deepseek-2026-10-05/PROTOCOL.md). The source distribution includes that suite, answer key and the standard-library runner. Install this candidate first, then provide the credential through `DEEPSEEK_API_KEY` in the process environment:
+
+```powershell
+python tools/deepseek_batch.py experiments/deepseek-2026-10-05/suite.json `
+  --out run-deepseek-20261005 --base-url https://api.deepseek.com `
+  --model deepseek-flash --key-env DEEPSEEK_API_KEY --repeats 3 `
+  --seed 20261005 --workers 4 --timeout 120 --max-tokens 4096 `
+  --reasoning-effort high --max-requests 432
+```
+
+The batch manifest records all planned admissions before execution. Both modes use the same seeded trial plan; same-trial pairs alternate which mode is admitted first. Concurrency is limited to 1–4 workers; actual starts/completions may differ from admission order. `events.jsonl` records submissions, completions and stopping decisions. Raw records and observations are created or appended once; failed slots are never automatically retried. HTTP 401/402/403, a `length` finish, a response-size failure, three consecutive errors or ten cumulative errors stop further admissions. Already submitted calls finish and are retained. Error order is the completion-event order, and invalid labels reset consecutive error counts. Ctrl+C stops admission and waits for bounded in-flight requests; remaining planned slots stay missing. There is no resume support; analyze a partial run offline and use a separately preregistered new directory if a new attempt is warranted. Each mode has its own run artifacts and `analysis-{mode}` report directory; `batch-summary.json` records the stop reason and coverage.
 
 `OpenAICompatible(...)` 提供在线适配器；Python 接口遵循相同的测试集校验和新输出目录规则。
 
 ## Development / 开发
 
-Current validation covers offline synthetic fixtures and local mock HTTP endpoints, including installed-package tests. **No real authenticated provider run or empirical model validation has been performed yet.**
+Implementation validation covers offline synthetic fixtures and local mock HTTP endpoints, including installed-package tests. Live pilots and study results must be reported separately with their actual recorded scope; passing implementation tests does not establish empirical model reliability.
 
-当前验证覆盖离线模拟数据、本机模拟 HTTP 端点与已安装包测试。**尚未对真实、已认证的模型服务进行调用验证，也尚未开展实证模型评估。**
+实现验证覆盖离线模拟数据、本机模拟 HTTP 端点与已安装包测试。在线试运行与正式实验应按实际记录单独报告；实现测试通过并不证明模型的一般可靠性。
 
 ```sh
 python -m pip install -e .

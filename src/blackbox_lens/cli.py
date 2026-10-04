@@ -42,9 +42,11 @@ def _parser() -> argparse.ArgumentParser:
     auth = run.add_mutually_exclusive_group()
     auth.add_argument("--key-env", default="OPENAI_API_KEY", help="environment variable name; never pass a key on command line")
     auth.add_argument("--no-auth", action="store_true", help="local host only")
-    run.add_argument("--timeout", type=float, default=30, help="request time budget, in seconds (0 < timeout ≤ 120)")
-    run.add_argument("--max-tokens", type=int, default=32)
+    run.add_argument("--timeout", type=float, default=30, help="request time budget, in seconds (0 < timeout ≤ 600)")
+    run.add_argument("--max-tokens", type=int, default=None, help="output budget; default 4096 with enabled thinking, otherwise 32")
     run.add_argument("--token-parameter", choices=["max_tokens", "max_completion_tokens"], default="max_tokens")
+    run.add_argument("--thinking", choices=["enabled", "disabled"], help="explicit provider thinking extension; omit for other providers")
+    run.add_argument("--reasoning-effort", choices=["low", "high", "max"], help="requires --thinking enabled")
     run.add_argument("--max-requests", type=int, default=100, help=f"explicit cost cap; hard maximum {MAX_REQUESTS}, no retries")
     analyze = commands.add_parser("analyze", help="offline recomputation; ignores cached report metrics")
     analyze.add_argument("run_dir", type=Path)
@@ -79,7 +81,8 @@ def main(argv: list[str] | None = None) -> int:
             if not args.no_auth and not key:
                 raise SuiteError("API key environment variable is absent or empty; local servers may use --no-auth")
             adapter = OpenAICompatible(args.base_url, args.model, api_key=key, timeout=args.timeout,
-                                       max_tokens=args.max_tokens, token_parameter=args.token_parameter)
+                                       max_tokens=args.max_tokens, token_parameter=args.token_parameter,
+                                       thinking=args.thinking, reasoning_effort=args.reasoning_effort)
             report = run_suite(suite, adapter, args.out, repeats=args.repeats, seed=args.seed,
                                max_requests=args.max_requests)
         c = report["counts"]

@@ -207,7 +207,7 @@ class RunTests(unittest.TestCase):
         path = self.root / "run" / "manifest.json"
         original = json.loads(path.read_text(encoding="utf-8"))
         for update in ({"order": original["order"][:-1]}, {"order": list(reversed(original["order"]))},
-                       {"suite_sha256": "0" * 64}, {"schema_version": 2}, {"repeats": True}, {"seed": -1}):
+                       {"suite_sha256": "0" * 64}, {"schema_version": 3}, {"repeats": True}, {"seed": -1}):
             path.write_text(json.dumps(dict(original, **update)), encoding="utf-8")
             with self.subTest(update=update), self.assertRaises(SuiteError):
                 analyze_run(self.root / "run")

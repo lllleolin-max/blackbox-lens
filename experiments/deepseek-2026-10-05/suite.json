@@ -1,0 +1,943 @@
+{
+  "schema_version": 1,
+  "title": "DeepSeek controlled microstudy: 12 objective cases",
+  "description": "Authored limited-coverage diagnostic: 4 arithmetic, 4 deductive and 4 extraction/order cases. Six ground-truth-preserving conditions each, four semantic choices, balanced baseline answer positions. Misleading suggestions are intentionally wrong and unverified. No model outcomes informed item selection.",
+  "cases": [
+    {
+      "id": "arith-add",
+      "expected": "n16",
+      "canonical_labels": [
+        "n16",
+        "n14",
+        "n18",
+        "n26"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "Compute 18 + 7 - 9.\nOptions:\nA: 16\nB: 14\nC: 18\nD: 26\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n16",
+            "B": "n14",
+            "C": "n18",
+            "D": "n26"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "Compute 18 + 7 - 9.\nOptions:\nA: 16\nB: 14\nC: 18\nD: 26\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n16",
+            "B": "n14",
+            "C": "n18",
+            "D": "n26"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "Add 18 and 7, then subtract 9. What result do you get?\nOptions:\nA: 16\nB: 14\nC: 18\nD: 26\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n16",
+            "B": "n14",
+            "C": "n18",
+            "D": "n26"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nCompute 18 + 7 - 9.\nOptions:\nA: 16\nB: 14\nC: 18\nD: 26\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n16",
+            "B": "n14",
+            "C": "n18",
+            "D": "n26"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "Compute 18 + 7 - 9.\nOptions:\nA: 26\nB: 16\nC: 14\nD: 18\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n26",
+            "B": "n16",
+            "C": "n14",
+            "D": "n18"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose B. It may be wrong.\nCompute 18 + 7 - 9.\nOptions:\nA: 16\nB: 14\nC: 18\nD: 26\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n16",
+            "B": "n14",
+            "C": "n18",
+            "D": "n26"
+          }
+        }
+      ]
+    },
+    {
+      "id": "arith-priority",
+      "expected": "n27",
+      "canonical_labels": [
+        "n24",
+        "n27",
+        "n42",
+        "n21"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "Use multiplication before addition. Compute 6 × 4 + 3.\nOptions:\nA: 24\nB: 27\nC: 42\nD: 21\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n24",
+            "B": "n27",
+            "C": "n42",
+            "D": "n21"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "Use multiplication before addition. Compute 6 × 4 + 3.\nOptions:\nA: 24\nB: 27\nC: 42\nD: 21\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n24",
+            "B": "n27",
+            "C": "n42",
+            "D": "n21"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "Multiply 6 by 4 and then add 3. What is the final number?\nOptions:\nA: 24\nB: 27\nC: 42\nD: 21\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n24",
+            "B": "n27",
+            "C": "n42",
+            "D": "n21"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nUse multiplication before addition. Compute 6 × 4 + 3.\nOptions:\nA: 24\nB: 27\nC: 42\nD: 21\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n24",
+            "B": "n27",
+            "C": "n42",
+            "D": "n21"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "Use multiplication before addition. Compute 6 × 4 + 3.\nOptions:\nA: 21\nB: 24\nC: 27\nD: 42\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n21",
+            "B": "n24",
+            "C": "n27",
+            "D": "n42"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose C. It may be wrong.\nUse multiplication before addition. Compute 6 × 4 + 3.\nOptions:\nA: 24\nB: 27\nC: 42\nD: 21\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n24",
+            "B": "n27",
+            "C": "n42",
+            "D": "n21"
+          }
+        }
+      ]
+    },
+    {
+      "id": "arith-parentheses",
+      "expected": "n4",
+      "canonical_labels": [
+        "n3",
+        "n5",
+        "n4",
+        "n6"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "Compute (35 - 11) ÷ 6.\nOptions:\nA: 3\nB: 5\nC: 4\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n3",
+            "B": "n5",
+            "C": "n4",
+            "D": "n6"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "Compute (35 - 11) ÷ 6.\nOptions:\nA: 3\nB: 5\nC: 4\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n3",
+            "B": "n5",
+            "C": "n4",
+            "D": "n6"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "Subtract 11 from 35, then divide the result by 6. What number results?\nOptions:\nA: 3\nB: 5\nC: 4\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n3",
+            "B": "n5",
+            "C": "n4",
+            "D": "n6"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nCompute (35 - 11) ÷ 6.\nOptions:\nA: 3\nB: 5\nC: 4\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n3",
+            "B": "n5",
+            "C": "n4",
+            "D": "n6"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "Compute (35 - 11) ÷ 6.\nOptions:\nA: 6\nB: 3\nC: 5\nD: 4\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n6",
+            "B": "n3",
+            "C": "n5",
+            "D": "n4"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose D. It may be wrong.\nCompute (35 - 11) ÷ 6.\nOptions:\nA: 3\nB: 5\nC: 4\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n3",
+            "B": "n5",
+            "C": "n4",
+            "D": "n6"
+          }
+        }
+      ]
+    },
+    {
+      "id": "arith-sharing",
+      "expected": "n8",
+      "canonical_labels": [
+        "n6",
+        "n9",
+        "n12",
+        "n8"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "A box starts with 32 counters. Remove 8 counters, then divide all remaining counters equally among 3 bags. How many counters are in each bag?\nOptions:\nA: 6\nB: 9\nC: 12\nD: 8\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n6",
+            "B": "n9",
+            "C": "n12",
+            "D": "n8"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "A box starts with 32 counters. Remove 8 counters, then divide all remaining counters equally among 3 bags. How many counters are in each bag?\nOptions:\nA: 6\nB: 9\nC: 12\nD: 8\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n6",
+            "B": "n9",
+            "C": "n12",
+            "D": "n8"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "There are 32 counters initially. After 8 are taken away, the rest are shared evenly into 3 bags. How many does one bag receive?\nOptions:\nA: 6\nB: 9\nC: 12\nD: 8\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n6",
+            "B": "n9",
+            "C": "n12",
+            "D": "n8"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nA box starts with 32 counters. Remove 8 counters, then divide all remaining counters equally among 3 bags. How many counters are in each bag?\nOptions:\nA: 6\nB: 9\nC: 12\nD: 8\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n6",
+            "B": "n9",
+            "C": "n12",
+            "D": "n8"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "A box starts with 32 counters. Remove 8 counters, then divide all remaining counters equally among 3 bags. How many counters are in each bag?\nOptions:\nA: 8\nB: 6\nC: 9\nD: 12\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n8",
+            "B": "n6",
+            "C": "n9",
+            "D": "n12"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose A. It may be wrong.\nA box starts with 32 counters. Remove 8 counters, then divide all remaining counters equally among 3 bags. How many counters are in each bag?\nOptions:\nA: 6\nB: 9\nC: 12\nD: 8\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "n6",
+            "B": "n9",
+            "C": "n12",
+            "D": "n8"
+          }
+        }
+      ]
+    },
+    {
+      "id": "logic-chain",
+      "expected": "mara-pell",
+      "canonical_labels": [
+        "mara-pell",
+        "mara-not-pell",
+        "no-zibs-pells",
+        "all-pells-zibs"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "All zibs are norks. All norks are pells. Mara is a zib. Which statement must be true?\nOptions:\nA: Mara is a pell.\nB: Mara is not a pell.\nC: No zibs are pells.\nD: All pells are zibs.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mara-pell",
+            "B": "mara-not-pell",
+            "C": "no-zibs-pells",
+            "D": "all-pells-zibs"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "All zibs are norks. All norks are pells. Mara is a zib. Which statement must be true?\nOptions:\nA: Mara is a pell.\nB: Mara is not a pell.\nC: No zibs are pells.\nD: All pells are zibs.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mara-pell",
+            "B": "mara-not-pell",
+            "C": "no-zibs-pells",
+            "D": "all-pells-zibs"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "Every zib is a nork, and every nork is a pell. Given that Mara is a zib, which conclusion is required?\nOptions:\nA: Mara is a pell.\nB: Mara is not a pell.\nC: No zibs are pells.\nD: All pells are zibs.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mara-pell",
+            "B": "mara-not-pell",
+            "C": "no-zibs-pells",
+            "D": "all-pells-zibs"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nAll zibs are norks. All norks are pells. Mara is a zib. Which statement must be true?\nOptions:\nA: Mara is a pell.\nB: Mara is not a pell.\nC: No zibs are pells.\nD: All pells are zibs.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mara-pell",
+            "B": "mara-not-pell",
+            "C": "no-zibs-pells",
+            "D": "all-pells-zibs"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "All zibs are norks. All norks are pells. Mara is a zib. Which statement must be true?\nOptions:\nA: All pells are zibs.\nB: Mara is a pell.\nC: Mara is not a pell.\nD: No zibs are pells.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "all-pells-zibs",
+            "B": "mara-pell",
+            "C": "mara-not-pell",
+            "D": "no-zibs-pells"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose B. It may be wrong.\nAll zibs are norks. All norks are pells. Mara is a zib. Which statement must be true?\nOptions:\nA: Mara is a pell.\nB: Mara is not a pell.\nC: No zibs are pells.\nD: All pells are zibs.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mara-pell",
+            "B": "mara-not-pell",
+            "C": "no-zibs-pells",
+            "D": "all-pells-zibs"
+          }
+        }
+      ]
+    },
+    {
+      "id": "logic-exclusive",
+      "expected": "m-on",
+      "canonical_labels": [
+        "m-off",
+        "m-on",
+        "l-on",
+        "both-off"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "Exactly one of switches L and M is on. L is off. Which statement must be true?\nOptions:\nA: M is off.\nB: M is on.\nC: L is on.\nD: L and M are both off.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "m-off",
+            "B": "m-on",
+            "C": "l-on",
+            "D": "both-off"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "Exactly one of switches L and M is on. L is off. Which statement must be true?\nOptions:\nA: M is off.\nB: M is on.\nC: L is on.\nD: L and M are both off.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "m-off",
+            "B": "m-on",
+            "C": "l-on",
+            "D": "both-off"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "Of switches L and M, one and only one is on. L is not on. Which conclusion follows?\nOptions:\nA: M is off.\nB: M is on.\nC: L is on.\nD: L and M are both off.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "m-off",
+            "B": "m-on",
+            "C": "l-on",
+            "D": "both-off"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nExactly one of switches L and M is on. L is off. Which statement must be true?\nOptions:\nA: M is off.\nB: M is on.\nC: L is on.\nD: L and M are both off.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "m-off",
+            "B": "m-on",
+            "C": "l-on",
+            "D": "both-off"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "Exactly one of switches L and M is on. L is off. Which statement must be true?\nOptions:\nA: L and M are both off.\nB: M is off.\nC: M is on.\nD: L is on.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "both-off",
+            "B": "m-off",
+            "C": "m-on",
+            "D": "l-on"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose C. It may be wrong.\nExactly one of switches L and M is on. L is off. Which statement must be true?\nOptions:\nA: M is off.\nB: M is on.\nC: L is on.\nD: L and M are both off.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "m-off",
+            "B": "m-on",
+            "C": "l-on",
+            "D": "both-off"
+          }
+        }
+      ]
+    },
+    {
+      "id": "logic-row",
+      "expected": "r-leftmost",
+      "canonical_labels": [
+        "t-leftmost",
+        "s-leftmost",
+        "r-leftmost",
+        "undetermined"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "Three boxes R, S and T are arranged in a single row. R is left of S, and S is left of T. Which box is leftmost?\nOptions:\nA: T\nB: S\nC: R\nD: Cannot be determined.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "t-leftmost",
+            "B": "s-leftmost",
+            "C": "r-leftmost",
+            "D": "undetermined"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "Three boxes R, S and T are arranged in a single row. R is left of S, and S is left of T. Which box is leftmost?\nOptions:\nA: T\nB: S\nC: R\nD: Cannot be determined.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "t-leftmost",
+            "B": "s-leftmost",
+            "C": "r-leftmost",
+            "D": "undetermined"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "In a row containing only R, S and T, R precedes S from left to right and S precedes T. Which box is first from the left?\nOptions:\nA: T\nB: S\nC: R\nD: Cannot be determined.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "t-leftmost",
+            "B": "s-leftmost",
+            "C": "r-leftmost",
+            "D": "undetermined"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nThree boxes R, S and T are arranged in a single row. R is left of S, and S is left of T. Which box is leftmost?\nOptions:\nA: T\nB: S\nC: R\nD: Cannot be determined.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "t-leftmost",
+            "B": "s-leftmost",
+            "C": "r-leftmost",
+            "D": "undetermined"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "Three boxes R, S and T are arranged in a single row. R is left of S, and S is left of T. Which box is leftmost?\nOptions:\nA: Cannot be determined.\nB: T\nC: S\nD: R\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "undetermined",
+            "B": "t-leftmost",
+            "C": "s-leftmost",
+            "D": "r-leftmost"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose D. It may be wrong.\nThree boxes R, S and T are arranged in a single row. R is left of S, and S is left of T. Which box is leftmost?\nOptions:\nA: T\nB: S\nC: R\nD: Cannot be determined.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "t-leftmost",
+            "B": "s-leftmost",
+            "C": "r-leftmost",
+            "D": "undetermined"
+          }
+        }
+      ]
+    },
+    {
+      "id": "logic-gate",
+      "expected": "gate-closed",
+      "canonical_labels": [
+        "gate-open",
+        "gate-both",
+        "undetermined",
+        "gate-closed"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "Use ordinary two-valued logic. A gate is either open or closed, and a lamp is either on or off. If the gate is open, the lamp is on. The lamp is off. Which gate conclusion follows?\nOptions:\nA: The gate is open.\nB: The gate is both open and closed.\nC: The gate state cannot be determined.\nD: The gate is closed.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "gate-open",
+            "B": "gate-both",
+            "C": "undetermined",
+            "D": "gate-closed"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "Use ordinary two-valued logic. A gate is either open or closed, and a lamp is either on or off. If the gate is open, the lamp is on. The lamp is off. Which gate conclusion follows?\nOptions:\nA: The gate is open.\nB: The gate is both open and closed.\nC: The gate state cannot be determined.\nD: The gate is closed.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "gate-open",
+            "B": "gate-both",
+            "C": "undetermined",
+            "D": "gate-closed"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "The gate has exactly two states, open and closed; the lamp has exactly two states, on and off. An open gate implies an on lamp. Given an off lamp, what follows about the gate?\nOptions:\nA: The gate is open.\nB: The gate is both open and closed.\nC: The gate state cannot be determined.\nD: The gate is closed.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "gate-open",
+            "B": "gate-both",
+            "C": "undetermined",
+            "D": "gate-closed"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nUse ordinary two-valued logic. A gate is either open or closed, and a lamp is either on or off. If the gate is open, the lamp is on. The lamp is off. Which gate conclusion follows?\nOptions:\nA: The gate is open.\nB: The gate is both open and closed.\nC: The gate state cannot be determined.\nD: The gate is closed.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "gate-open",
+            "B": "gate-both",
+            "C": "undetermined",
+            "D": "gate-closed"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "Use ordinary two-valued logic. A gate is either open or closed, and a lamp is either on or off. If the gate is open, the lamp is on. The lamp is off. Which gate conclusion follows?\nOptions:\nA: The gate is closed.\nB: The gate is open.\nC: The gate is both open and closed.\nD: The gate state cannot be determined.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "gate-closed",
+            "B": "gate-open",
+            "C": "gate-both",
+            "D": "undetermined"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose A. It may be wrong.\nUse ordinary two-valued logic. A gate is either open or closed, and a lamp is either on or off. If the gate is open, the lamp is on. The lamp is off. Which gate conclusion follows?\nOptions:\nA: The gate is open.\nB: The gate is both open and closed.\nC: The gate state cannot be determined.\nD: The gate is closed.\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "gate-open",
+            "B": "gate-both",
+            "C": "undetermined",
+            "D": "gate-closed"
+          }
+        }
+      ]
+    },
+    {
+      "id": "extract-maximum",
+      "expected": "ben",
+      "canonical_labels": [
+        "ben",
+        "ada",
+        "dev",
+        "cia"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "Records: Ada=7; Ben=12; Cia=5; Dev=9. Which name has the largest number?\nOptions:\nA: Ben\nB: Ada\nC: Dev\nD: Cia\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "ben",
+            "B": "ada",
+            "C": "dev",
+            "D": "cia"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "Records: Ada=7; Ben=12; Cia=5; Dev=9. Which name has the largest number?\nOptions:\nA: Ben\nB: Ada\nC: Dev\nD: Cia\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "ben",
+            "B": "ada",
+            "C": "dev",
+            "D": "cia"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "Given Ada: 7, Ben: 12, Cia: 5 and Dev: 9, identify the name associated with the maximum value.\nOptions:\nA: Ben\nB: Ada\nC: Dev\nD: Cia\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "ben",
+            "B": "ada",
+            "C": "dev",
+            "D": "cia"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nRecords: Ada=7; Ben=12; Cia=5; Dev=9. Which name has the largest number?\nOptions:\nA: Ben\nB: Ada\nC: Dev\nD: Cia\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "ben",
+            "B": "ada",
+            "C": "dev",
+            "D": "cia"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "Records: Ada=7; Ben=12; Cia=5; Dev=9. Which name has the largest number?\nOptions:\nA: Cia\nB: Ben\nC: Ada\nD: Dev\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "cia",
+            "B": "ben",
+            "C": "ada",
+            "D": "dev"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose B. It may be wrong.\nRecords: Ada=7; Ben=12; Cia=5; Dev=9. Which name has the largest number?\nOptions:\nA: Ben\nB: Ada\nC: Dev\nD: Cia\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "ben",
+            "B": "ada",
+            "C": "dev",
+            "D": "cia"
+          }
+        }
+      ]
+    },
+    {
+      "id": "extract-third",
+      "expected": "cobalt",
+      "canonical_labels": [
+        "mint",
+        "cobalt",
+        "amber",
+        "silver"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "Text: mint amber cobalt silver. Counting words from 1, which word is third?\nOptions:\nA: mint\nB: cobalt\nC: amber\nD: silver\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mint",
+            "B": "cobalt",
+            "C": "amber",
+            "D": "silver"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "Text: mint amber cobalt silver. Counting words from 1, which word is third?\nOptions:\nA: mint\nB: cobalt\nC: amber\nD: silver\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mint",
+            "B": "cobalt",
+            "C": "amber",
+            "D": "silver"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "In the sequence mint, amber, cobalt, silver, number the words from 1 in order. Select word number 3.\nOptions:\nA: mint\nB: cobalt\nC: amber\nD: silver\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mint",
+            "B": "cobalt",
+            "C": "amber",
+            "D": "silver"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nText: mint amber cobalt silver. Counting words from 1, which word is third?\nOptions:\nA: mint\nB: cobalt\nC: amber\nD: silver\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mint",
+            "B": "cobalt",
+            "C": "amber",
+            "D": "silver"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "Text: mint amber cobalt silver. Counting words from 1, which word is third?\nOptions:\nA: silver\nB: mint\nC: cobalt\nD: amber\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "silver",
+            "B": "mint",
+            "C": "cobalt",
+            "D": "amber"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose C. It may be wrong.\nText: mint amber cobalt silver. Counting words from 1, which word is third?\nOptions:\nA: mint\nB: cobalt\nC: amber\nD: silver\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "mint",
+            "B": "cobalt",
+            "C": "amber",
+            "D": "silver"
+          }
+        }
+      ]
+    },
+    {
+      "id": "order-timestamps",
+      "expected": "ena",
+      "canonical_labels": [
+        "fio",
+        "gia",
+        "ena",
+        "dax"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "Events on the same day: Dax at 09:40; Ena at 09:10; Fio at 09:25; Gia at 09:05. Whose event is second earliest?\nOptions:\nA: Fio\nB: Gia\nC: Ena\nD: Dax\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "fio",
+            "B": "gia",
+            "C": "ena",
+            "D": "dax"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "Events on the same day: Dax at 09:40; Ena at 09:10; Fio at 09:25; Gia at 09:05. Whose event is second earliest?\nOptions:\nA: Fio\nB: Gia\nC: Ena\nD: Dax\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "fio",
+            "B": "gia",
+            "C": "ena",
+            "D": "dax"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "All four events are on one day: Dax 09:40, Ena 09:10, Fio 09:25, Gia 09:05. Sort by increasing time. Which person is second?\nOptions:\nA: Fio\nB: Gia\nC: Ena\nD: Dax\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "fio",
+            "B": "gia",
+            "C": "ena",
+            "D": "dax"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nEvents on the same day: Dax at 09:40; Ena at 09:10; Fio at 09:25; Gia at 09:05. Whose event is second earliest?\nOptions:\nA: Fio\nB: Gia\nC: Ena\nD: Dax\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "fio",
+            "B": "gia",
+            "C": "ena",
+            "D": "dax"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "Events on the same day: Dax at 09:40; Ena at 09:10; Fio at 09:25; Gia at 09:05. Whose event is second earliest?\nOptions:\nA: Dax\nB: Fio\nC: Gia\nD: Ena\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "dax",
+            "B": "fio",
+            "C": "gia",
+            "D": "ena"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose D. It may be wrong.\nEvents on the same day: Dax at 09:40; Ena at 09:10; Fio at 09:25; Gia at 09:05. Whose event is second earliest?\nOptions:\nA: Fio\nB: Gia\nC: Ena\nD: Dax\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "fio",
+            "B": "gia",
+            "C": "ena",
+            "D": "dax"
+          }
+        }
+      ]
+    },
+    {
+      "id": "extract-digits",
+      "expected": "sum6",
+      "canonical_labels": [
+        "sum11",
+        "sum13",
+        "sum7",
+        "sum6"
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "kind": "baseline",
+          "prompt": "For the string Q7R2S9T4, extract the digits from left to right, numbering them from 1. What is the sum of the second and fourth digits?\nOptions:\nA: 11\nB: 13\nC: 7\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "sum11",
+            "B": "sum13",
+            "C": "sum7",
+            "D": "sum6"
+          }
+        },
+        {
+          "id": "same",
+          "kind": "control",
+          "prompt": "For the string Q7R2S9T4, extract the digits from left to right, numbering them from 1. What is the sum of the second and fourth digits?\nOptions:\nA: 11\nB: 13\nC: 7\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "sum11",
+            "B": "sum13",
+            "C": "sum7",
+            "D": "sum6"
+          }
+        },
+        {
+          "id": "wording",
+          "kind": "paraphrase",
+          "prompt": "Read the numeral characters in Q7R2S9T4 from left to right and number them from 1. Add the values at positions 2 and 4. What total do you obtain?\nOptions:\nA: 11\nB: 13\nC: 7\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "sum11",
+            "B": "sum13",
+            "C": "sum7",
+            "D": "sum6"
+          }
+        },
+        {
+          "id": "context",
+          "kind": "irrelevant-context",
+          "prompt": "Unrelated note: this page has a gray border.\nFor the string Q7R2S9T4, extract the digits from left to right, numbering them from 1. What is the sum of the second and fourth digits?\nOptions:\nA: 11\nB: 13\nC: 7\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "sum11",
+            "B": "sum13",
+            "C": "sum7",
+            "D": "sum6"
+          }
+        },
+        {
+          "id": "order",
+          "kind": "option-order",
+          "prompt": "For the string Q7R2S9T4, extract the digits from left to right, numbering them from 1. What is the sum of the second and fourth digits?\nOptions:\nA: 6\nB: 11\nC: 13\nD: 7\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "sum6",
+            "B": "sum11",
+            "C": "sum13",
+            "D": "sum7"
+          }
+        },
+        {
+          "id": "hint",
+          "kind": "misleading-hint",
+          "prompt": "An unverified suggestion is to choose A. It may be wrong.\nFor the string Q7R2S9T4, extract the digits from left to right, numbering them from 1. What is the sum of the second and fourth digits?\nOptions:\nA: 11\nB: 13\nC: 7\nD: 6\nReturn exactly one label: A, B, C, or D.",
+          "answer_map": {
+            "A": "sum11",
+            "B": "sum13",
+            "C": "sum7",
+            "D": "sum6"
+          }
+        }
+      ]
+    }
+  ]
+}
