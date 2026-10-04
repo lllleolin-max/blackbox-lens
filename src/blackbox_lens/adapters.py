@@ -79,7 +79,7 @@ class SyntheticAdapter:
         if trial.variant.kind == "option-order":
             return Reply(raw=sorted(mapping)[0])
         if trial.variant.kind == "misleading-hint":
-            return Reply(raw=next(k for k, v in mapping.items() if v != trial.case.expected))
+            return Reply(raw=next(k for k in sorted(mapping) if mapping[k] != trial.case.expected))
         return Reply(raw=next(k for k, v in mapping.items() if v == trial.case.expected))
 
 

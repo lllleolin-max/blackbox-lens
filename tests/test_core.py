@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+from itertools import permutations
 import subprocess
 import sys
 import tempfile
@@ -87,6 +88,24 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(original.sha256, reordered.sha256)
         a, b = create_plan(original), create_plan(reordered)
         self.assertEqual([SyntheticAdapter().respond(t) for t in a], [SyntheticAdapter().respond(t) for t in b])
+
+    def test_three_choice_hint_stable_across_all_map_orders(self):
+        value = small_suite().to_dict()
+        case = value["cases"][0]
+        case.update(expected="yes", canonical_labels=["yes", "no", "maybe"])
+        case["variants"][1].update(kind="misleading-hint", id="hint")
+        signatures, hints = set(), set()
+        for items in permutations((("A", "yes"), ("B", "no"), ("C", "maybe"))):
+            for variant in case["variants"]:
+                variant["answer_map"] = dict(items)
+                variant["prompt"] = "Choose yes. A: yes. B: no. C: maybe. Reply A, B or C."
+            suite = Suite.from_dict(value)
+            signatures.add(suite.sha256)
+            trial = next(t for t in create_plan(suite, repeats=1) if t.variant.kind == "misleading-hint")
+            reply = SyntheticAdapter().respond(trial)
+            hints.add((reply.raw, trial.variant.answer_map[reply.raw]))
+        self.assertEqual(len(signatures), 1)
+        self.assertEqual(hints, {("B", "no")})
 
 
 class RunTests(unittest.TestCase):
@@ -192,6 +211,34 @@ class RunTests(unittest.TestCase):
             path.write_text(json.dumps(dict(original, **update)), encoding="utf-8")
             with self.subTest(update=update), self.assertRaises(SuiteError):
                 analyze_run(self.root / "run")
+
+    def test_invalid_manifest_json_metadata_has_bounded_sdk_cli_errors(self):
+        self.run_fixture()
+        path = self.root / "run" / "manifest.json"
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value["adapter"] = "BADMETADATA"
+        template = json.dumps(value)
+        for index, metadata in enumerate(('{"x": 1e999}', '{"name": "\\ud800"}', '{"\\ud800": "value"}')):
+            with self.subTest(metadata=metadata):
+                path.write_text(template.replace('"BADMETADATA"', metadata), encoding="utf-8")
+                out = self.root / f"invalid-analysis-{index}"
+                with self.assertRaises(SuiteError):
+                    analyze_run(self.root / "run", out)
+                result = subprocess.run([sys.executable, "-m", "blackbox_lens", "analyze", str(self.root / "run"),
+                                         "--out", str(out)], capture_output=True, text=True, cwd=self.root)
+                self.assertEqual(result.returncode, 2)
+                self.assertTrue(result.stderr.startswith("Error:"), result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertFalse(out.exists())
+
+    def test_pooled_report_labels_and_weighting_are_explicit(self):
+        self.run_fixture()
+        html = (self.root / "run" / "report.html").read_text(encoding="utf-8")
+        self.assertEqual(html.count("<th>Variant kind (pooled)</th>"), 3)
+        self.assertIn("<th>Total conditions</th>", html)
+        self.assertIn("rates divide pooled valid-pair counts", html)
+        self.assertIn("disagreement divides pooled disagreeing pairs by pooled valid pairs", html)
+        self.assertIn("A condition is one case and variant", html)
 
     def test_exclusive_outputs_and_request_cap(self):
         directory = self.root / "already exists"

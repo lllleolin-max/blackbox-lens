@@ -30,8 +30,12 @@ def _unique(pairs: list[tuple[str, Any]]) -> dict:
 
 def decode_json(data: str | bytes) -> Any:
     try:
-        return json.loads(data, object_pairs_hook=_unique,
-                          parse_constant=lambda _: (_ for _ in ()).throw(SuiteError("nonfinite JSON number")))
+        value = json.loads(data, object_pairs_hook=_unique,
+                           parse_constant=lambda _: (_ for _ in ()).throw(SuiteError("nonfinite JSON number")))
+        # JSON parsing also permits overflowed exponents and escaped lone surrogates.
+        # Validate the complete decoded object before any artifact processing or write.
+        canonical_bytes(value)
+        return value
     except (ValueError, UnicodeError, RecursionError) as exc:
         raise SuiteError("invalid strict JSON") from None
 
@@ -48,8 +52,11 @@ def read_json(path: str | Path, limit: int = MAX_SUITE_BYTES) -> Any:
 
 
 def canonical_bytes(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"),
-                      ensure_ascii=False, allow_nan=False).encode("utf-8")
+    try:
+        return json.dumps(value, sort_keys=True, separators=(",", ":"),
+                          ensure_ascii=False, allow_nan=False).encode("utf-8")
+    except (ValueError, TypeError, RecursionError):
+        raise SuiteError("value must be finite, UTF-8 JSON") from None
 
 
 def keys(value: Any, expected: set[str], what: str) -> None:
