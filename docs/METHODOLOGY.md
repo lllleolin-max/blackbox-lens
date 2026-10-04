@@ -36,7 +36,7 @@ Prefer one declared intervention per comparison. If wording and option order cha
 
 Each case/variant receives the requested number of repetitions. Baseline–variant comparisons are matched within case and repetition. One baseline response is shared across that repetition's variant comparisons; those comparisons therefore depend on the same observation.
 
-The scheduler uses a recorded seed to shuffle request order. This reproduces the plan, not provider responses. Request order is separate from option order: request order changes scheduling; option order changes the input and requires its own map. The live adapter sends a fresh system/user conversation each time, requests a single exact label, sets `temperature=0`, and makes no retries or redirects. It does not promise model determinism or independently sampled responses.
+The scheduler uses a recorded seed to shuffle request order. This reproduces the plan, not provider responses. Request order is separate from option order: request order changes scheduling; option order changes the input and requires its own map. The live adapter sends a fresh system/user conversation each time, requests a single exact label, sends `temperature=0` when thinking is unspecified or explicitly disabled, omits temperature when thinking is explicitly enabled, and makes no retries or redirects. It does not promise model determinism or independently sampled responses.
 
 The synthetic adapter deliberately reads expected labels and applies planted position/hint biases. It verifies scoring and reporting behavior; its output is not empirical evidence about a model. A repeated cached response from an external endpoint also does not establish fresh-sample repeatability.
 
