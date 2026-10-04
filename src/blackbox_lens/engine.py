@@ -179,6 +179,21 @@ def _counts(rows: list[dict]) -> dict:
             "valid_accuracy": _rate(correct, counts["valid"])}
 
 
+PAIR_COUNT_FIELDS = ("planned_pairs", "observed_pairs", "valid_pairs", "same", "flips",
+                     "correct_to_incorrect", "incorrect_to_correct", "both_correct", "both_incorrect")
+
+
+def _pair_counts() -> dict:
+    return dict.fromkeys(PAIR_COUNT_FIELDS, 0)
+
+
+def _pair_rates(pair: dict) -> None:
+    pair["excluded_pairs"] = pair["planned_pairs"] - pair["valid_pairs"]
+    pair["coverage"] = _rate(pair["valid_pairs"], pair["planned_pairs"])
+    pair["invariance"] = _rate(pair["same"], pair["valid_pairs"])
+    pair["flip_rate"] = _rate(pair["flips"], pair["valid_pairs"])
+
+
 def analyze_run(run_dir: str | Path, out: str | Path | None = None) -> dict:
     """Recompute from raw observations; cached reports are ignored. Missing slots remain missing."""
     directory = Path(run_dir)
@@ -203,6 +218,7 @@ def analyze_run(run_dir: str | Path, out: str | Path | None = None) -> dict:
     counts = _counts(rows)
     by_kind = {kind: _counts([r for r in rows if r["kind"] == kind]) for kind in sorted({r["kind"] for r in rows})}
     comparisons: dict[str, dict] = {}
+    case_contrasts: list[dict] = []
     repeated: dict[str, dict] = {}
     for case in suite.cases:
         for variant in case.variants:
@@ -220,9 +236,8 @@ def analyze_run(run_dir: str | Path, out: str | Path | None = None) -> dict:
                 repeat_summary["disagreeing_repeat_pairs"] += left["semantic_answer"] != right["semantic_answer"]
             if variant.kind == "baseline":
                 continue
-            pair = comparisons.setdefault(variant.kind, {"planned_pairs": 0, "observed_pairs": 0,
-                "valid_pairs": 0, "same": 0, "flips": 0, "correct_to_incorrect": 0,
-                "incorrect_to_correct": 0, "both_correct": 0, "both_incorrect": 0})
+            pair = {"case_id": case.id, "variant_id": variant.id, "baseline_variant_id": case.baseline.id,
+                    "kind": variant.kind, **_pair_counts()}
             for row in condition_rows:
                 baseline = lookup[(case.id, case.baseline.id, row["repeat"])]
                 pair["planned_pairs"] += 1
@@ -240,17 +255,19 @@ def analyze_run(run_dir: str | Path, out: str | Path | None = None) -> dict:
                     pair["both_correct"] += 1
                 else:
                     pair["both_incorrect"] += 1
+            _pair_rates(pair)
+            case_contrasts.append(pair)
+            pooled = comparisons.setdefault(variant.kind, _pair_counts())
+            for field in PAIR_COUNT_FIELDS:
+                pooled[field] += pair[field]
     for pair in comparisons.values():
-        pair["excluded_pairs"] = pair["planned_pairs"] - pair["valid_pairs"]
-        pair["coverage"] = _rate(pair["valid_pairs"], pair["planned_pairs"])
-        pair["invariance"] = _rate(pair["same"], pair["valid_pairs"])
-        pair["flip_rate"] = _rate(pair["flips"], pair["valid_pairs"])
+        _pair_rates(pair)
     for repeated_summary in repeated.values():
         repeated_summary["disagreement_rate"] = _rate(repeated_summary["disagreeing_repeat_pairs"],
                                                     repeated_summary["valid_repeat_pairs"])
     report = {"schema_version": 1, "complete": counts["missing"] == 0, "manifest": manifest,
               "counts": counts, "by_kind": by_kind, "comparisons": comparisons,
-              "repeat_consistency": repeated, "trials": rows}
+              "case_contrasts": case_contrasts, "repeat_consistency": repeated, "trials": rows}
     if out is not None:
         _save_reports(_new_directory(out), report)
     return report

@@ -12,6 +12,15 @@ def _percent(value: float | None) -> str:
     return "N/A" if value is None else f"{value:.1%}"
 
 
+def _condition_anchor(case_id: str, variant_id: str) -> str:
+    # The length prefix makes hyphenated case/variant identifiers unambiguous.
+    return f"condition-{len(case_id)}-{case_id}-{variant_id}"
+
+
+def _condition_link(case_id: str, variant_id: str, label: str) -> str:
+    return f'<a href="#{_e(_condition_anchor(case_id, variant_id))}">{_e(label)}</a>'
+
+
 def render_html(report: dict) -> str:
     manifest, counts = report["manifest"], report["counts"]
     suite = manifest["suite"]
@@ -24,6 +33,13 @@ def render_html(report: dict) -> str:
         _percent(p["invariance"]), _percent(p["flip_rate"]), p["correct_to_incorrect"],
         p["incorrect_to_correct"], p["both_correct"], p["both_incorrect"])) + "</tr>"
         for kind, p in report["comparisons"].items())
+    contrast_rows = "".join("<tr>" + "".join(f"<td>{value}</td>" for value in (
+        _condition_link(p["case_id"], p["baseline_variant_id"], p["case_id"]),
+        _condition_link(p["case_id"], p["baseline_variant_id"], p["baseline_variant_id"]),
+        _condition_link(p["case_id"], p["variant_id"], p["variant_id"]),
+        _e(p["kind"]), _e(f"{p['valid_pairs']} / {p['planned_pairs']}"), _e(p["excluded_pairs"]),
+        _e(p["flips"]), _e(_percent(p["flip_rate"])), _e(p["correct_to_incorrect"]),
+        _e(p["incorrect_to_correct"]))) + "</tr>" for p in report["case_contrasts"])
     repeat_rows = "".join("<tr>" + "".join(f"<td>{_e(value)}</td>" for value in (
         kind, r["conditions"], r["eligible_conditions"], r["conditions_with_disagreement"], r["planned_repeat_pairs"],
         r["valid_repeat_pairs"], r["disagreeing_repeat_pairs"], _percent(r["disagreement_rate"]))) + "</tr>"
@@ -32,7 +48,8 @@ def render_html(report: dict) -> str:
         r["order"], r["trial_id"], r["status"], r["raw"] if r["raw"] is not None else "—",
         r["semantic_answer"] or "—", r["expected"], r["correct"], r["error"] or "—")) + "</tr>"
         for r in report["trials"])
-    conditions = "".join(f"<details><summary>{_e(c['id'])} · {_e(v['id'])} · {_e(v['kind'])}</summary>"
+    conditions = "".join(f'<details id="{_e(_condition_anchor(c["id"], v["id"]))}"><summary>'
+                          f"{_e(c['id'])} · {_e(v['id'])} · {_e(v['kind'])}</summary>"
                           f"<p>Expected semantic answer: <b>{_e(c['expected'])}</b></p>"
                           f"<p>Label → semantic answer: {_e(v['answer_map'])}</p>"
                           f"<pre>{_e(v['prompt'])}</pre></details>"
@@ -70,6 +87,8 @@ details{{border-top:1px solid var(--line);padding:12px 0}}summary{{cursor:pointe
 <div class="scroll"><table><thead><tr><th>Variant kind (pooled)</th><th>Planned</th><th>Observed</th><th>Valid</th><th>Invalid</th><th>Errors</th><th>Missing</th><th>Correct</th><th>Strict accuracy</th><th>Valid accuracy</th></tr></thead><tbody>{kind_rows}</tbody></table></div>
 <h2>Paired baseline contrasts</h2><p>Each variant is paired with the same case and repeat's baseline. Rows sum pair counts across case/variant conditions of the same kind; rates divide pooled valid-pair counts, not averages of per-case percentages. Invariance = same semantic answer / valid pairs; flip rate = changed semantic answer / valid pairs. Both answers must be valid. Invariance can include two incorrect answers. Excluded pairs contain an invalid, error or missing response. A baseline may be reused across conditions; these are dependent descriptive counts.</p>
 <div class="scroll"><table><thead><tr><th>Variant kind (pooled)</th><th>Planned pairs</th><th>Observed pairs</th><th>Valid pairs</th><th>Excluded</th><th>Invariance</th><th>Flip rate</th><th>Correct → incorrect</th><th>Incorrect → correct</th><th>Both correct</th><th>Both incorrect</th></tr></thead><tbody>{pair_rows}</tbody></table></div>
+<h2>Case and variant contrasts</h2><p>Each row compares one case and variant with that case's baseline across repetitions. Only pairs with two valid semantic answers enter the flip rate. Baselines are shared across variants. Kind summaries sum these row counts; they do not average row percentages. Links locate the declared baseline or variant prompt below. Zero eligible pairs remain visible as N/A with their planned denominator.</p>
+<div class="scroll"><table><thead><tr><th>Case</th><th>Baseline</th><th>Variant</th><th>Kind</th><th>Valid / planned pairs</th><th>Excluded pairs</th><th>Semantic flips</th><th>Flip rate</th><th>Correct → incorrect</th><th>Incorrect → correct</th></tr></thead><tbody>{contrast_rows}</tbody></table></div>
 <h2>Repeat consistency</h2><p>A condition is one case and variant. Within each condition, compare all pairs of valid repeated answers. Eligible conditions have at least two valid responses. Rows sum repeat-pair counts across conditions of the same kind; disagreement divides pooled disagreeing pairs by pooled valid pairs, not averages of per-condition percentages. Conditions with more valid pairs receive more weight. Repeated prompts and pairs are dependent; no confidence interval, causal explanation or generalization is implied. The presentation seed changes order only, not the provider's random seed.</p>
 <div class="scroll"><table><thead><tr><th>Variant kind (pooled)</th><th>Total conditions</th><th>Eligible conditions</th><th>Disagreeing conditions</th><th>Planned repeat pairs</th><th>Valid repeat pairs</th><th>Disagreeing pairs</th><th>Disagreement</th></tr></thead><tbody>{repeat_rows}</tbody></table></div>
 <h2>Raw observations</h2><p>Only surrounding whitespace is stripped before exact label lookup. No answer extraction, case folding or fuzzy matching. Every planned slot appears below; raw response text is retained up to the documented bound.</p>

@@ -136,6 +136,14 @@ Prompts are sent to the configured endpoint. Artifacts retain the suite, configu
 | `report.json` | Counts, denominators and computed metrics / 计数、分母和计算指标 |
 | `report.html` | Standalone report for inspection / 可独立打开的检查报告 |
 
+`report.json` includes `case_contrasts`: one row for each declared case and nonbaseline variant, identifying its baseline and showing paired counts, coverage, invariance and flip rate. The HTML **Case and variant contrasts** section links case, baseline and variant identifiers to their declared prompts, so you can locate the input behind a change. Zero-flip and zero-eligible rows remain visible; rates with no valid pairs are N/A.
+
+`report.json` 中的 `case_contrasts` 为每个案例与非基线变体提供一行记录，注明对应基线并展示配对计数、覆盖率、一致率和翻转率。HTML 的 **Case and variant contrasts** 部分将案例、基线和变体标识链接到原提示，便于定位变化来源。零翻转、零有效配对的行仍会保留；没有有效配对时，翻转率与一致率显示 N/A。
+
+The pooled `comparisons` summaries sum these rows' integer counts by kind, then recompute rates from the pooled denominators; they do not average row percentages.
+
+按变体类型汇总的 `comparisons` 先对这些行的整数计数求和，再用汇总分母计算比例，不对各行百分比取平均。
+
 ```sh
 blackbox-lens analyze demo-run --out demo-analysis
 ```
@@ -178,6 +186,16 @@ Current validation covers offline synthetic fixtures and local mock HTTP endpoin
 python -m pip install -e .
 python -m unittest discover -s tests -v
 ```
+
+## Audit trail / 审计记录
+
+The [fixed rubric](docs/reviews/RUBRIC.md), [Round 1 review](docs/reviews/ROUND1.md) and [Round 2 review](docs/reviews/ROUND2.md) record AI audits of specific committed candidates, with stated tests, findings and limits. Their scope is delivery of this bounded prototype and its synthetic/local mock HTTP evidence. They do not constitute independent human peer review or empirical validation of a real model.
+
+[固定评分标准](docs/reviews/RUBRIC.md)、[第 1 轮审计](docs/reviews/ROUND1.md)和[第 2 轮审计](docs/reviews/ROUND2.md)记录了针对明确提交版本的 AI 审计及其测试、发现和范围限制。审计对象是本原型的交付质量及模拟、本机 HTTP 测试证据，不等同于独立人工同行评审或真实模型实证验证。
+
+When v0.1.0 is published, its [Round 3 release audit report](https://github.com/lllleolin-max/blackbox-lens/releases/download/v0.1.0/ROUND3.md) records the final reviewed source SHA, decision and limitations. Read that report for the result applicable to the release; earlier reviews describe their own cited versions.
+
+v0.1.0 发布时，其[第 3 轮发布审计报告](https://github.com/lllleolin-max/blackbox-lens/releases/download/v0.1.0/ROUND3.md)将记录最终审查的源码 SHA、结论和限制。请以该报告判断发布版本的结果；前两轮报告仅描述各自注明的版本。
 
 See [method definitions and primary references](docs/METHODOLOGY.md). Related projects such as [CheckList](https://aclanthology.org/2020.acl-main.442/), [FormatSpread](https://arxiv.org/abs/2310.11324), and [Inspect](https://inspect.aisi.org.uk/) cover established behavioral testing, format sensitivity, and broader evaluation infrastructure. This project offers a small, focused workflow; it does not claim a new interpretability technique.
 

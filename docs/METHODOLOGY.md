@@ -74,6 +74,28 @@ For each condition let `P` be planned response slots, `V` valid responses, and `
 
 The report groups eligible, planned and excluded pair counts by variant kind. These are pair-weighted totals, not equal-weight case averages. Response-state counts and raw trial rows explain excluded comparisons. A wrong answer can stay stable; two different wrong answers can flip. Correctness and consistency must therefore be interpreted separately. If variants of different difficulty or validity are grouped by kind, inspect the individual prompts and cases before drawing a general conclusion.
 
+### Case and variant contrasts
+
+`report.case_contrasts` is a list with one record per declared case and nonbaseline variant, summarizing its paired repetitions against that case's baseline. Records remain distinct even when several variants have the same kind, and include zero-flip and zero-eligible cases. Each record contains:
+
+| Fields | Definition |
+| --- | --- |
+| `case_id`, `variant_id`, `baseline_variant_id`, `kind` | The exact contrast identity; variant IDs are only unique within a case. |
+| `planned_pairs`, `observed_pairs`, `valid_pairs`, `excluded_pairs` | Planned pairs; pairs with both observations present; pairs with both semantic answers valid; planned minus valid pairs. Recorded invalid/error responses are observed but not valid. |
+| `same`, `flips` | Same or different semantic answers among valid pairs. |
+| `correct_to_incorrect`, `incorrect_to_correct`, `both_correct`, `both_incorrect` | Correctness-transition counts among the same valid pairs. |
+| `coverage`, `invariance`, `flip_rate` | Valid/planned, same/valid and flips/valid pairs. |
+
+If `valid_pairs` is zero, `invariance` and `flip_rate` are `null` in JSON and N/A in HTML; coverage is zero for a nonzero planned denominator. Pair identity and baseline reuse follow the existing case/repetition contract. A missing baseline can therefore exclude more than one variant comparison; excluded pairs must not be interpreted as distinct failed response slots.
+
+The pooled `comparisons` object sums these records' integer counts by kind and recomputes rates from the summed numerators and denominators. It does not average row rates. For example, row flip counts of 1/2, 1/1 and 1/2 pool to 3/5, not the mean percentage 2/3. The added breakdown changes traceability, not eligibility or the estimator.
+
+The standalone HTML **Case and variant contrasts** table links case, baseline and variant identifiers to their existing declared prompt details. It introduces no JavaScript or new suite-input fields. Reanalysis produces this breakdown from saved observations, so existing run artifacts remain usable.
+
+**中文要点：** `case_contrasts` 按案例与具体非基线变体逐行展示，保留同类型的多个变体、零翻转与零有效配对。复用基线导致多个排除配对时，不能把它们当作多个独立失败响应。汇总先加整数计数再计算比例；明细增加可追溯性，不改变评分规则。
+
+### Repeat disagreement
+
 For repeated answers to the **same case and variant**, let `n` be the number of valid repeats and `n_c` the count of semantic ID `c`. Repeat disagreement is:
 
 ```text
