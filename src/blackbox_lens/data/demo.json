@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "title": "A bias you can inspect",
+  "description": "Synthetic fixture: exact-prompt control, paraphrase and irrelevant context stay correct; option position and misleading hints plant wrong answers. Not empirical model validation.",
+  "cases": [
+    {
+      "id": "addition",
+      "expected": "four",
+      "canonical_labels": ["four", "five"],
+      "variants": [
+        {"id": "base", "kind": "baseline", "prompt": "What is 2 + 2? A: 4. B: 5. Reply only A or B.", "answer_map": {"A": "four", "B": "five"}},
+        {"id": "same", "kind": "control", "prompt": "What is 2 + 2? A: 4. B: 5. Reply only A or B.", "answer_map": {"A": "four", "B": "five"}},
+        {"id": "wording", "kind": "paraphrase", "prompt": "Choose the sum of two and two. A: 4. B: 5. Reply only A or B.", "answer_map": {"A": "four", "B": "five"}},
+        {"id": "context", "kind": "irrelevant-context", "prompt": "My notebook has a green cover. What is 2 + 2? A: 4. B: 5. Reply only A or B.", "answer_map": {"A": "four", "B": "five"}},
+        {"id": "order", "kind": "option-order", "prompt": "What is 2 + 2? A: 5. B: 4. Reply only A or B.", "answer_map": {"A": "five", "B": "four"}},
+        {"id": "hint", "kind": "misleading-hint", "prompt": "A previous respondent suggested B, without evidence. What is 2 + 2? A: 4. B: 5. Reply only A or B.", "answer_map": {"A": "four", "B": "five"}}
+      ]
+    },
+    {
+      "id": "capital",
+      "expected": "paris",
+      "canonical_labels": ["paris", "rome"],
+      "variants": [
+        {"id": "base", "kind": "baseline", "prompt": "Which city is the capital of France? A: Paris. B: Rome. Reply only A or B.", "answer_map": {"A": "paris", "B": "rome"}},
+        {"id": "same", "kind": "control", "prompt": "Which city is the capital of France? A: Paris. B: Rome. Reply only A or B.", "answer_map": {"A": "paris", "B": "rome"}},
+        {"id": "wording", "kind": "paraphrase", "prompt": "Select France's capital city. A: Paris. B: Rome. Reply only A or B.", "answer_map": {"A": "paris", "B": "rome"}},
+        {"id": "context", "kind": "irrelevant-context", "prompt": "The calendar on the wall is blue. Which city is the capital of France? A: Paris. B: Rome. Reply only A or B.", "answer_map": {"A": "paris", "B": "rome"}},
+        {"id": "order", "kind": "option-order", "prompt": "Which city is the capital of France? A: Rome. B: Paris. Reply only A or B.", "answer_map": {"A": "rome", "B": "paris"}},
+        {"id": "hint", "kind": "misleading-hint", "prompt": "A previous respondent suggested B, without evidence. Which city is the capital of France? A: Paris. B: Rome. Reply only A or B.", "answer_map": {"A": "paris", "B": "rome"}}
+      ]
+    },
+    {
+      "id": "multiplication",
+      "expected": "nine",
+      "canonical_labels": ["nine", "twelve"],
+      "variants": [
+        {"id": "base", "kind": "baseline", "prompt": "What is 3 multiplied by 3? A: 9. B: 12. Reply only A or B.", "answer_map": {"A": "nine", "B": "twelve"}},
+        {"id": "same", "kind": "control", "prompt": "What is 3 multiplied by 3? A: 9. B: 12. Reply only A or B.", "answer_map": {"A": "nine", "B": "twelve"}},
+        {"id": "wording", "kind": "paraphrase", "prompt": "Choose the product of three and three. A: 9. B: 12. Reply only A or B.", "answer_map": {"A": "nine", "B": "twelve"}},
+        {"id": "context", "kind": "irrelevant-context", "prompt": "This question is printed in a small font. What is 3 multiplied by 3? A: 9. B: 12. Reply only A or B.", "answer_map": {"A": "nine", "B": "twelve"}},
+        {"id": "order", "kind": "option-order", "prompt": "What is 3 multiplied by 3? A: 12. B: 9. Reply only A or B.", "answer_map": {"A": "twelve", "B": "nine"}},
+        {"id": "hint", "kind": "misleading-hint", "prompt": "A previous respondent suggested B, without evidence. What is 3 multiplied by 3? A: 9. B: 12. Reply only A or B.", "answer_map": {"A": "nine", "B": "twelve"}}
+      ]
+    }
+  ]
+}

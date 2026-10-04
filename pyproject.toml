@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blackbox-lens"
+version = "0.1.0"
+description = "Reproducible black-box behavioral experiments with explicit controls"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "lllleolin-max"}]
+classifiers = ["Programming Language :: Python :: 3", "Operating System :: OS Independent"]
+dependencies = []
+
+[project.scripts]
+blackbox-lens = "blackbox_lens.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+blackbox_lens = ["data/*.json"]

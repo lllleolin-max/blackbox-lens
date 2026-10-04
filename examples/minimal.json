@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "title": "Addition with explicit controls",
+  "description": "Ground truth stays four; option-order changes only its displayed label.",
+  "cases": [
+    {
+      "id": "addition",
+      "expected": "four",
+      "canonical_labels": ["four", "five"],
+      "variants": [
+        {"id": "base", "kind": "baseline", "prompt": "What is 2 + 2? A: 4. B: 5. Reply only A or B.", "answer_map": {"A": "four", "B": "five"}},
+        {"id": "same", "kind": "control", "prompt": "What is 2 + 2? A: 4. B: 5. Reply only A or B.", "answer_map": {"A": "four", "B": "five"}},
+        {"id": "order", "kind": "option-order", "prompt": "What is 2 + 2? A: 5. B: 4. Reply only A or B.", "answer_map": {"A": "five", "B": "four"}}
+      ]
+    }
+  ]
+}
