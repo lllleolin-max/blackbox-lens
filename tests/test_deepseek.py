@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import copy
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -83,6 +85,51 @@ class DeepSeekTests(unittest.TestCase):
                     self.assertTrue(response["body_truncated"])
                     self.assertEqual(response["retained_body_bytes"], MAX_RESPONSE_BYTES)
 
+    def test_declared_body_length_short_read_retains_response_as_error(self):
+        body = provider_body()
+        with server(body, declared_extra=37) as (url, requests):
+            reply = OpenAICompatible(url, "m", api_key=KEY).respond(create_plan(small_suite())[0])
+            self.assertEqual(reply.error, "incomplete_response")
+            self.assertIsNone(reply.raw)
+            response = reply.evidence["response"]
+            self.assertTrue(response["body_truncated"])
+            self.assertEqual(response["declared_content_length"], len(body) + 37)
+            self.assertEqual(response["body_bytes_received"], len(body))
+            self.assertEqual(response["provider_response"]["choices"][0]["message"]["content"], "A")
+            self.assertEqual(len(requests), 1)
+
+    def test_provider_request_response_and_timestamps_must_be_consistent(self):
+        with tempfile.TemporaryDirectory() as tmp, server(provider_body()) as (url, _):
+            directory = Path(tmp) / "run"
+            run_suite(small_suite(), OpenAICompatible(url, "m", api_key=KEY), directory, repeats=1)
+            observation_path = directory / "observations.jsonl"
+            original_observations = [json.loads(line) for line in observation_path.read_text().splitlines()]
+            call_path = directory / original_observations[0]["call_record"]["path"]
+            original_call = json.loads(call_path.read_text())
+            def change_both_content(call):
+                response = call["provider"]["response"]
+                response["provider_response"]["choices"][0]["message"]["content"] = "B"
+                response["metadata"]["content"] = "B"
+            changes = [change_both_content,
+                lambda call: call["provider"]["response"]["metadata"].update(usage={"total_tokens": 99}),
+                lambda call: call["provider"]["request"]["payload"]["messages"][1].update(content="different prompt"),
+                lambda call: call["provider"]["request"]["payload"].update(model="different model"),
+                lambda call: call.update(completed_at="2000-01-01T00:00:00+00:00"),
+                lambda call: call["provider"].update(completed_at="2000-01-01T00:00:00+00:00"),
+                lambda call: call["provider"]["response"].update(body_truncated=True),
+                lambda call: call["provider"]["response"].update(declared_content_length=999999)]
+            for index, mutation in enumerate(changes):
+                with self.subTest(index=index):
+                    call = copy.deepcopy(original_call)
+                    observations = copy.deepcopy(original_observations)
+                    mutation(call)
+                    encoded = canonical_bytes(call)
+                    call_path.write_bytes(encoded)
+                    observations[0]["call_record"]["sha256"] = hashlib.sha256(encoded).hexdigest()
+                    observation_path.write_bytes(b"\n".join(canonical_bytes(x) for x in observations) + b"\n")
+                    with self.assertRaises(SuiteError):
+                        analyze_run(directory)
+
     def test_v2_digest_validation_and_v1_reanalysis(self):
         with tempfile.TemporaryDirectory() as tmp, server(provider_body()) as (url, _):
             directory = Path(tmp) / "run"
@@ -139,6 +186,7 @@ class DeepSeekTests(unittest.TestCase):
     def test_mode_validation(self):
         for config in ({"thinking": "yes"}, {"thinking": "disabled", "reasoning_effort": "high"},
                        {"reasoning_effort": "high"}, {"thinking": "enabled", "reasoning_effort": "none"},
+                       {"thinking": []}, {"thinking": {}}, {"reasoning_effort": {}}, {"token_parameter": []},
                        {"max_tokens": True}, {"max_tokens": 393217}):
             with self.subTest(config=config), self.assertRaises(SuiteError):
                 OpenAICompatible("http://localhost", "m", api_key=None, **config)

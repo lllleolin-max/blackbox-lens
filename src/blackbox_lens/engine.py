@@ -13,7 +13,7 @@ from itertools import combinations
 from pathlib import Path
 
 from . import __version__
-from .adapters import Adapter, ERRORS, Reply
+from .adapters import Adapter, ERRORS, Reply, _request_payload, _response_metadata
 from .suite import (Case, MAX_RAW_CHARS, MAX_REQUESTS, Suite, SuiteError, Variant,
                     canonical_bytes, decode_json, integer, keys, read_json)
 
@@ -165,8 +165,106 @@ def _load_manifest(directory: Path) -> tuple[dict, Suite, list[Trial]]:
     return manifest, suite, plan
 
 
-def _load_observations(directory: Path, planned: set[str], *, schema_version: int = 1,
-                       suite_sha256: str | None = None) -> dict[str, dict]:
+def _utc_interval(value: dict) -> None:
+    stamps = []
+    for field in ("started_at", "completed_at"):
+        try:
+            stamp = datetime.fromisoformat(value[field])
+            if stamp.utcoffset() != timezone.utc.utcoffset(stamp):
+                raise ValueError
+            stamps.append(stamp)
+        except (KeyError, TypeError, ValueError):
+            raise SuiteError("invalid call record UTC timestamp") from None
+    if stamps[1] < stamps[0]:
+        raise SuiteError("call completion precedes its start")
+    # Duration is monotonic client time; UTC deltas need not equal it after clock adjustments.
+
+
+def _validate_http_evidence(provider, observation: dict, trial: Trial, metadata: dict) -> None:
+    """Check internal consistency, not authenticity of locally editable evidence."""
+    error = observation["error"]
+    if provider is None:
+        if error != "adapter_error":
+            raise SuiteError("HTTP observation has no provider evidence")
+        return
+    if provider == {"evidence_rejected": True} and error == "adapter_error":
+        return
+    if provider == {"redacted": True} and error == "secret_redacted":
+        return
+    keys(provider, {"started_at", "completed_at", "duration_ms", "request", "response", "reasoning_content_meaning", "error"},
+         "HTTP evidence")
+    _utc_interval(provider)
+    if (type(provider["duration_ms"]) not in {int, float} or not math.isfinite(provider["duration_ms"])
+            or provider["duration_ms"] < 0):
+        raise SuiteError("invalid provider duration")
+    if provider["error"] != error:
+        raise SuiteError("provider error does not match observation")
+    thinking, effort = metadata.get("thinking"), metadata.get("reasoning_effort")
+    if (thinking is not None and (not isinstance(thinking, str) or thinking not in {"enabled", "disabled"})
+            or effort is not None and (not isinstance(effort, str) or effort not in {"low", "high", "max"}
+                                       or thinking != "enabled")):
+        raise SuiteError("invalid HTTP thinking metadata")
+    parameter = metadata.get("token_parameter")
+    if not isinstance(parameter, str) or parameter not in {"max_tokens", "max_completion_tokens"}:
+        raise SuiteError("invalid HTTP token parameter metadata")
+    integer(metadata.get("max_output_tokens"), 1, 393216, "recorded token budget")
+    timeout = metadata.get("timeout_seconds")
+    if type(timeout) not in {int, float} or not math.isfinite(timeout) or not 0 < timeout <= 600:
+        raise SuiteError("invalid HTTP timeout metadata")
+    expected_temperature = None if thinking == "enabled" else 0
+    expected_behavior = "omitted_for_thinking" if thinking == "enabled" else "sent_zero"
+    if (metadata.get("temperature") != expected_temperature
+            or metadata.get("temperature_behavior") != expected_behavior
+            or type(metadata.get("auth_configured")) is not bool):
+        raise SuiteError("inconsistent HTTP adapter metadata")
+    try:
+        expected_request = {"endpoint": metadata["base_url"] + "/chat/completions",
+                            "payload": _request_payload(metadata, trial),
+                            "timeout_seconds": metadata["timeout_seconds"],
+                            "auth_configured": metadata["auth_configured"],
+                            "temperature_behavior": metadata["temperature_behavior"]}
+    except (KeyError, TypeError):
+        raise SuiteError("invalid HTTP adapter metadata") from None
+    if provider["request"] != expected_request:
+        raise SuiteError("provider request does not match manifest and trial")
+    if provider["reasoning_content_meaning"] != metadata.get("reasoning_content_meaning"):
+        raise SuiteError("provider reasoning description contradicts manifest")
+    response = provider["response"]
+    if not isinstance(response, dict) or not isinstance(response.get("metadata"), dict):
+        raise SuiteError("invalid HTTP response evidence")
+    expected_info = _response_metadata(response.get("provider_response"))
+    if response["metadata"] != expected_info:
+        raise SuiteError("response summary contradicts provider JSON")
+    status, truncated, redacted = response.get("http_status"), response.get("body_truncated"), response.get("redacted")
+    if (status is not None and (type(status) is not int or not 100 <= status <= 599)):
+        raise SuiteError("invalid recorded HTTP status")
+    if type(truncated) is not bool or type(redacted) is not bool:
+        raise SuiteError("invalid recorded response flags")
+    if error is None:
+        if (status != 200 or truncated or redacted or expected_info["finish_reason"] != "stop"
+                or expected_info["content"] != observation["raw"]):
+            raise SuiteError("successful observation contradicts provider response")
+    if error == "http_error" and (status is None or status == 200):
+        raise SuiteError("HTTP error contradicts recorded status")
+    if error == "secret_redacted" and not redacted:
+        raise SuiteError("secret redaction is not recorded")
+    declared = response.get("declared_content_length")
+    received = response.get("body_bytes_received")
+    retained = response.get("retained_body_bytes")
+    for count in (received, retained):
+        if type(count) is not int or count < 0:
+            raise SuiteError("invalid recorded response size")
+    if retained > received:
+        raise SuiteError("retained response exceeds received bytes")
+    if declared is not None:
+        if type(declared) is not int or declared < 0:
+            raise SuiteError("invalid declared response size")
+        if received != declared and not truncated:
+            raise SuiteError("response length mismatch is not marked incomplete")
+
+
+def _load_observations(directory: Path, planned: dict[str, Trial], *, schema_version: int = 1,
+                       suite_sha256: str | None = None, adapter_metadata: dict | None = None) -> dict[str, dict]:
     observations = {}
     total = 0
     try:
@@ -208,19 +306,16 @@ def _load_observations(directory: Path, planned: set[str], *, schema_version: in
                         raise SuiteError("call record digest mismatch")
                     keys(record, {"schema_version", "trial_id", "suite_sha256", "started_at", "completed_at",
                                   "observation", "provider"}, "call record")
-                    if (record["schema_version"] != 1 or record["trial_id"] != tid
+                    integer(record["schema_version"], 1, 1, "call record schema_version")
+                    if (record["trial_id"] != tid
                             or record["suite_sha256"] != suite_sha256
                             or record["observation"] != {k: value[k] for k in fields}):
                         raise SuiteError("call record does not match observation")
-                    for field in ("started_at", "completed_at"):
-                        try:
-                            stamp = datetime.fromisoformat(record[field])
-                            if stamp.utcoffset() != timezone.utc.utcoffset(stamp):
-                                raise ValueError
-                        except (TypeError, ValueError):
-                            raise SuiteError("invalid call record UTC timestamp") from None
+                    _utc_interval(record)
                     if record["provider"] is not None and not isinstance(record["provider"], dict):
                         raise SuiteError("invalid provider evidence")
+                    if adapter_metadata and adapter_metadata.get("kind") == "openai-compatible":
+                        _validate_http_evidence(record["provider"], value, planned[tid], adapter_metadata)
                 observations[tid] = value
     except OSError:
         raise SuiteError("cannot read observations") from None
@@ -259,8 +354,8 @@ def analyze_run(run_dir: str | Path, out: str | Path | None = None) -> dict:
     """Recompute from raw observations; cached reports are ignored. Missing slots remain missing."""
     directory = Path(run_dir)
     manifest, suite, plan = _load_manifest(directory)
-    observations = _load_observations(directory, {t.id for t in plan}, schema_version=manifest["schema_version"],
-                                      suite_sha256=suite.sha256)
+    observations = _load_observations(directory, {t.id: t for t in plan}, schema_version=manifest["schema_version"],
+                                      suite_sha256=suite.sha256, adapter_metadata=manifest["adapter"])
     rows = []
     lookup = {}
     for order, trial in enumerate(plan, start=1):

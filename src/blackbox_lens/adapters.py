@@ -24,6 +24,38 @@ ERRORS = {"http_error", "network_error", "timeout", "response_too_large", "malfo
 MAX_RESPONSE_BYTES = 1_048_576
 
 
+def _request_payload(metadata: dict, trial: Trial) -> dict:
+    """The exact supported request contract, shared with offline evidence validation."""
+    payload = {"model": metadata["model"], "messages": [
+        {"role": "system", "content": "Return exactly one of these labels, with no explanation: "
+         + ", ".join(sorted(trial.variant.answer_map))},
+        {"role": "user", "content": trial.variant.prompt}], "stream": False,
+        metadata["token_parameter"]: metadata["max_output_tokens"]}
+    if metadata["thinking"] is not None:
+        payload["thinking"] = {"type": metadata["thinking"]}
+    if metadata["thinking"] != "enabled":
+        payload["temperature"] = 0
+    if metadata["reasoning_effort"] is not None:
+        payload["reasoning_effort"] = metadata["reasoning_effort"]
+    return payload
+
+
+def _response_metadata(provider) -> dict:
+    info = {"id": None, "model": None, "finish_reason": None,
+            "content": None, "reasoning_content": None, "usage": None}
+    if isinstance(provider, dict):
+        for name in ("id", "model", "usage"):
+            info[name] = provider.get(name)
+        choices = provider.get("choices")
+        if isinstance(choices, list) and len(choices) == 1 and isinstance(choices[0], dict):
+            info["finish_reason"] = choices[0].get("finish_reason")
+            message = choices[0].get("message")
+            if isinstance(message, dict):
+                for name in ("content", "reasoning_content"):
+                    info[name] = message.get(name)
+    return info
+
+
 class _DeadlineReader(io.RawIOBase):
     """Apply the remaining total budget to every socket receive, including header lines."""
 
@@ -123,9 +155,10 @@ class OpenAICompatible:
             raise SuiteError("credential must not occur in endpoint or model metadata")
         if type(timeout) not in {int, float} or not math.isfinite(timeout) or not 0 < timeout <= 600:
             raise SuiteError("timeout must be finite and in (0, 600] seconds")
-        if thinking not in {None, "enabled", "disabled"}:
+        if thinking is not None and (not isinstance(thinking, str) or thinking not in {"enabled", "disabled"}):
             raise SuiteError("thinking must be enabled, disabled or unspecified")
-        if reasoning_effort not in {None, "low", "high", "max"}:
+        if reasoning_effort is not None and (not isinstance(reasoning_effort, str)
+                                             or reasoning_effort not in {"low", "high", "max"}):
             raise SuiteError("reasoning_effort must be low, high or max")
         if reasoning_effort is not None and thinking != "enabled":
             raise SuiteError("reasoning_effort requires explicit enabled thinking")
@@ -133,7 +166,7 @@ class OpenAICompatible:
             max_tokens = 4096 if thinking == "enabled" else 32
         if type(max_tokens) is not int or not 1 <= max_tokens <= 393216:
             raise SuiteError("max_tokens must be an integer in [1, 393216]")
-        if token_parameter not in {"max_tokens", "max_completion_tokens"}:
+        if not isinstance(token_parameter, str) or token_parameter not in {"max_tokens", "max_completion_tokens"}:
             raise SuiteError("unsupported token parameter")
         self._scheme, self._host, self._port = parsed.scheme, host, port
         self._path = parsed.path.rstrip("/") + "/chat/completions"
@@ -160,17 +193,7 @@ class OpenAICompatible:
         # A prompt accidentally containing the configured key is never sent or saved by run_suite.
         if self._api_key and self._api_key in trial.variant.prompt:
             return Reply(error="secret_redacted")
-        payload = {"model": self._model, "messages": [
-            {"role": "system", "content": "Return exactly one of these labels, with no explanation: "
-             + ", ".join(sorted(trial.variant.answer_map))},
-            {"role": "user", "content": trial.variant.prompt}],
-            "stream": False, self._token_parameter: self._max_tokens}
-        if self._thinking is not None:
-            payload["thinking"] = {"type": self._thinking}
-        if self._thinking != "enabled":
-            payload["temperature"] = 0
-        if self._reasoning_effort is not None:
-            payload["reasoning_effort"] = self._reasoning_effort
+        payload = _request_payload(self.metadata, trial)
         encoded = json.dumps(payload, ensure_ascii=False, allow_nan=False).encode("utf-8")
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if self._api_key:
@@ -191,25 +214,14 @@ class OpenAICompatible:
             response_record["body_bytes_received"] = total
             response_record["retained_body_bytes"] = len(body)
             response_record["retained_body_sha256"] = hashlib.sha256(body).hexdigest()
-            response_record["metadata"] = {"id": None, "model": None, "finish_reason": None,
-                                           "content": None, "reasoning_content": None, "usage": None}
+            response_record["metadata"] = _response_metadata(None)
             response_record["redacted"] = False
             if body:
                 try:
                     provider = decode_json(body)
                     response_record["redacted"] = self.contains_secret(body)
                     response_record["provider_response"] = self._redact(provider)
-                    if isinstance(provider, dict):
-                        info = response_record["metadata"]
-                        for name in ("id", "model", "usage"):
-                            info[name] = self._redact(provider.get(name))
-                        choices = provider.get("choices")
-                        if isinstance(choices, list) and len(choices) == 1 and isinstance(choices[0], dict):
-                            info["finish_reason"] = self._redact(choices[0].get("finish_reason"))
-                            message = choices[0].get("message")
-                            if isinstance(message, dict):
-                                for name in ("content", "reasoning_content"):
-                                    info[name] = self._redact(message.get(name))
+                    response_record["metadata"] = self._redact(_response_metadata(provider))
                 except SuiteError:
                     text = body.decode("utf-8", errors="replace")
                     response_record["body_prefix_utf8"] = self._redact(text)
@@ -229,6 +241,7 @@ class OpenAICompatible:
             self._remaining(connection, deadline)
             response = connection.getresponse()
             evidence["response"]["http_status"] = response.status
+            evidence["response"]["declared_content_length"] = response.length if not response.chunked else None
             while True:
                 self._remaining(connection, deadline)
                 chunk = response.read1(min(8192, MAX_RESPONSE_BYTES + 1 - total))
@@ -240,6 +253,9 @@ class OpenAICompatible:
                     evidence["response"]["body_truncated"] = True
                     return result(error="response_too_large")
                 chunks.append(chunk)
+            if response.length is not None and response.length != 0:
+                evidence["response"]["body_truncated"] = True
+                return result(error="incomplete_response")
             if response.status != 200:
                 return result(error="http_error")
             reply = self._parse(b"".join(chunks))

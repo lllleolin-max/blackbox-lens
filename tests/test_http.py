@@ -18,7 +18,7 @@ KEY = 'dummy-key-quote"back\\slash'
 
 
 @contextmanager
-def server(body, status=200, delay=0):
+def server(body, status=200, delay=0, declared_extra=None):
     requests = []
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self):
@@ -27,6 +27,8 @@ def server(body, status=200, delay=0):
             time.sleep(delay)
             try:
                 self.send_response(status)
+                if declared_extra is not None:
+                    self.send_header("Content-Length", str(len(body) + declared_extra))
                 if status == 302:
                     self.send_header("Location", "http://127.0.0.1:1/credential-trap")
                 self.end_headers()

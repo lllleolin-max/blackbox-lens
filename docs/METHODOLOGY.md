@@ -120,9 +120,9 @@ Generated rationales that sound plausible do not establish explanation faithfuln
 
 ## 6. Provenance, retention and reanalysis
 
-A run saves `manifest.json`, `observations.jsonl`, `report.json` and `report.html`. The manifest includes the suite, its hash, adapter metadata and execution plan. Observations retain trial IDs, bounded raw output or errors, and elapsed durations; analysis derives slot status. Reanalysis recomputes results against the saved plan and writes JSON/HTML reports to a fresh output directory, leaving the source intact. That new analysis directory contains reports, not a second raw run. Existing output directories are rejected.
+A run saves `manifest.json`, `observations.jsonl`, `calls/*.json`, `report.json` and `report.html`. The manifest includes the suite, its hash, adapter metadata and execution plan. Schema-2 observations retain trial IDs, bounded final output or errors, elapsed durations and SHA-256 references to sanitized per-call evidence. Schema-1 observations remain analyzable. HTTP call records preserve the received provider JSON, returned metadata and exact request JSON without authorization; failed responses remain visible. Analysis validates internal request/response/observation consistency and UTC ordering. File hashes detect corruption relative to the journal; they do not authenticate locally editable artifacts. Monotonic client duration need not equal a UTC clock delta. Reanalysis recomputes results against the saved plan and writes JSON/HTML reports to a fresh output directory, leaving the source intact. That new analysis directory contains reports, not a second raw run. Existing output directories are rejected.
 
-The live adapter supports one nonstreaming chat/completions response, a configurable output-token limit, and a timeout bounded to 120 seconds. It does not stream, retry, follow redirects or use a model SDK. Remote connections require HTTPS and authentication; loopback endpoints can opt out of authentication. Request budgets are checked before execution. Provider behavior and model versions beyond available metadata remain external limitations.
+The live adapter supports one nonstreaming chat/completions response, a configurable output-token limit, and a timeout bounded to 600 seconds (the DeepSeek study explicitly selects 120). It does not stream, retry, follow redirects or use a model SDK. Remote connections require HTTPS and authentication; loopback endpoints can opt out of authentication. Request budgets are checked before execution. Provider behavior and model versions beyond available metadata remain external limitations. `reasoning_content` is provider-returned text, not guaranteed privileged internal reasoning.
 
 Concrete resource bounds:
 
@@ -130,15 +130,16 @@ Concrete resource bounds:
 | --- | --- |
 | Suite JSON | 1 MiB (1,048,576 bytes), including the canonical suite representation |
 | Each prompt | 32,768 characters |
-| Each retained raw response | 4,096 characters |
-| HTTP response body | 65,536 bytes |
-| Planned calls | Hard maximum 1,000; live runs default to an explicit budget of 100 |
+| Each final answer accepted for scoring | 4,096 characters; larger final content is retained within the body bound but scored as an error |
+| HTTP response body | 1 MiB (1,048,576 bytes); oversized bodies retain a flagged prefix |
+| Each serialized call record | 4 MiB (4,194,304 bytes), including provider JSON and metadata |
+| Planned calls | Hard maximum 1,000 per suite run; live runs default to an explicit budget of 100; two-mode batch maximum 2,000 |
 | Repeats per case/variant | 1–100 |
-| Request timeout | Greater than zero and at most 120 seconds |
+| Request timeout | Greater than zero and at most 600 seconds; study budget 120 seconds |
 
-Oversized responses become errors rather than silently truncated accepted answers. These are pipeline limits, not guarantees about a provider's internal token accounting or computation. Current validation uses offline synthetic fixtures and local mock HTTP endpoints; no real authenticated provider run or empirical model validation has been performed yet.
+Oversized and incomplete HTTP responses become errors rather than silently truncated accepted answers, including a body that closes before its declared Content-Length even if its received prefix is valid JSON. These are pipeline limits, not guarantees about a provider's internal token accounting or computation. Implementation validation uses offline synthetic fixtures and local mock HTTP endpoints. Authenticated pilot and formal-study evidence are recorded separately with actual call counts and provenance; implementation tests establish neither empirical model reliability nor hidden reasoning recovery.
 
-**中文要点：** 测试集最多 1 MiB，单条提示最多 32,768 字符，原始响应最多 4,096 字符，HTTP 响应体最多 65,536 字节；计划最多 1,000 次调用，每条件重复 1–100 次，超时最多 120 秒。超长响应记为错误。当前仅验证模拟与本机 HTTP 测试，尚未验证真实认证服务或真实模型表现。
+**中文要点：** 测试集最多 1 MiB，单条提示最多 32,768 字符；评分用最终答案最多 4,096 字符，提供商响应体另行保留，最多 1 MiB，逐次记录最多 4 MiB。单模式计划最多 1,000 次调用，双模式批次最多 2,000 次；每条件重复 1–100 次，超时最多 600 秒，本次研究选用 120 秒。超长或传输不完整响应记为错误。实现测试、在线试运行和正式实验按实际证据分别记录，不能将本机测试视为模型可靠性证明。
 
 The configured key is not stored in adapter metadata; literal occurrences in saved inputs or returned output are checked. This narrowly scoped check does not detect other secrets, transformed credentials or sensitive prompt content. Suite text and accepted raw responses are retained without automatic deletion. Inspect artifacts and endpoint policies before sending or sharing sensitive material.
 

@@ -208,13 +208,13 @@ python -m unittest discover -s tests -v
 
 ## Audit trail / 审计记录
 
-The [fixed rubric](docs/reviews/RUBRIC.md), [Round 1 review](docs/reviews/ROUND1.md) and [Round 2 review](docs/reviews/ROUND2.md) record AI audits of specific committed candidates, with stated tests, findings and limits. Their scope is delivery of this bounded prototype and its synthetic/local mock HTTP evidence. They do not constitute independent human peer review or empirical validation of a real model.
+The [fixed rubric](docs/reviews/RUBRIC.md), [Round 1 review](docs/reviews/ROUND1.md) and [Round 2 review](docs/reviews/ROUND2.md) are historical v0.1.0 candidate audits, with stated tests, findings and limits. Their scope is delivery of that bounded prototype and its synthetic/local mock HTTP evidence. They do not audit the v0.2.0 DeepSeek extension or constitute independent human peer review or empirical validation of a real model.
 
 [固定评分标准](docs/reviews/RUBRIC.md)、[第 1 轮审计](docs/reviews/ROUND1.md)和[第 2 轮审计](docs/reviews/ROUND2.md)记录了针对明确提交版本的 AI 审计及其测试、发现和范围限制。审计对象是本原型的交付质量及模拟、本机 HTTP 测试证据，不等同于独立人工同行评审或真实模型实证验证。
 
-When v0.1.0 is published, its [Round 3 release audit report](https://github.com/lllleolin-max/blackbox-lens/releases/download/v0.1.0/ROUND3.md) records the final reviewed source SHA, decision and limitations. Read that report for the result applicable to the release; earlier reviews describe their own cited versions.
+The published v0.1.0 [Round 3 release audit report](https://github.com/lllleolin-max/blackbox-lens/releases/download/v0.1.0/ROUND3.md) records that release's reviewed source SHA, decision and limitations. Read that report for the result applicable to v0.1.0; earlier reviews describe their own cited versions.
 
-v0.1.0 发布时，其[第 3 轮发布审计报告](https://github.com/lllleolin-max/blackbox-lens/releases/download/v0.1.0/ROUND3.md)将记录最终审查的源码 SHA、结论和限制。请以该报告判断发布版本的结果；前两轮报告仅描述各自注明的版本。
+已发布的 v0.1.0 [第 3 轮发布审计报告](https://github.com/lllleolin-max/blackbox-lens/releases/download/v0.1.0/ROUND3.md)记录该版本的源码 SHA、结论和限制。请以该报告判断 v0.1.0 的结果；前两轮报告仅描述各自注明的历史版本，不代表 v0.2.0 扩展的审查结果。
 
 See [method definitions and primary references](docs/METHODOLOGY.md). Related projects such as [CheckList](https://aclanthology.org/2020.acl-main.442/), [FormatSpread](https://arxiv.org/abs/2310.11324), and [Inspect](https://inspect.aisi.org.uk/) cover established behavioral testing, format sensitivity, and broader evaluation infrastructure. This project offers a small, focused workflow; it does not claim a new interpretability technique.
 
